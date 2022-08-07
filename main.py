@@ -1,4 +1,4 @@
-from features import FeatureExtractor
+from feature_extractor import FeatureExtractor
 import pre_processing
 import pandas as pd
 
@@ -10,7 +10,7 @@ def main():
     columns = df.columns.difference(to_drop).to_list()
     df["covid"] = df["covid"].astype("uint8")
     df.drop_duplicates(subset=columns, inplace=True)
-    df.to_csv("./csv/features.csv", index=False)
+    df.to_csv("./features.csv", index=False)
     
 
 
