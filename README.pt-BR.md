@@ -1,4 +1,7 @@
 # Metodologias computacionais para detecção e diagnóstico da Síndrome Respiratória Aguda Grave - SARS-CoV-2 (COVID-19) por meio de imagens médicas
+
+> O pipeline atual (em inglês) está descrito no [README.md](README.md). Este arquivo guarda o texto da pesquisa de 2022.
+
 Neste repositório está presente todo o código fonte utilizado para o projeto de pesquisa. Desde o pré-processamento das imagens à criação do modelo preditivo.
 
 ## Base com 36.755 imagens

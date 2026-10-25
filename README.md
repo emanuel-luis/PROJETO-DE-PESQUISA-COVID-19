@@ -1,32 +1,109 @@
+# COVID-19 X-ray Pipeline
 
-# COVID-19 Detection from Chest X-Rays
-
-> Research pipeline for detecting COVID-19 (SARS-CoV-2) from medical images: preprocessing of
-> **36,755** chest X-rays and a benchmark of ~10 machine-learning classifiers.
+> A reproducible DVC pipeline that turns three public chest X-ray datasets into a leakage-safe
+> COVID-19 vs normal benchmark: classical features and a small CNN, compared on the same splits.
 
 [![ci](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/ci.yml)
-![Jupyter](https://img.shields.io/badge/Jupyter-F37626?logo=jupyter&logoColor=white)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
+[![security](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/security.yml/badge.svg)](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/security.yml)
+[![license](https://img.shields.io/github/license/emanuel-luis/covid19-xray-pipeline)](LICENSE)
+![python](https://img.shields.io/badge/python-3.12+-blue)
 
-> Published research: two papers at ERCEMAPI 2022, the Regional Computing School of Ceará,
-> Maranhão and Piauí (see [Publications](#publications)).
+The project started as a 2022 research notebook (two papers at ERCEMAPI 2022, see
+[Publications](#publications)). It is now one DVC pipeline with typed table contracts, run
+metadata on every stage and a CI that runs the whole DAG on synthetic images. The 2022 research
+text, in Portuguese, is in [README.pt-BR.md](README.pt-BR.md).
 
 ## What this demonstrates
 
-- **Large-dataset handling** — consolidating 36,755 images from three public datasets into a
-  uniform `256×256` corpus.
-- **Reproducible benchmarking** — training and comparing ~10 classifiers on shared metrics.
-- **Evaluation rigor** — reporting F1, accuracy, specificity, recall, and precision per model.
+- Layered data flow: raw, catalog, processed, features, splits, models, evaluation. Each layer
+  has one owner stage, one directory and a documented contract ([docs/DATA.md](docs/DATA.md)).
+- Idempotent stages: outputs are written to a temporary directory and swapped in atomically, then
+  `_run.json` is written last, so a half-written layer is detectable and a rerun is safe.
+- Typed contracts: every table is validated against a pyarrow schema before it is written, and
+  rows a stage cannot use go to a rejects table with a reason instead of being dropped silently.
+- Run metadata: each stage records run id, timings, row counts, rejects and a hash of its
+  parameters; source downloads record sha256 per file, version and license in a manifest.
+- Reproducibility: pinned source versions, a locked environment (`uv.lock`), seeded and
+  deterministic stages, and `dvc repro` as the single entry point.
+- Leakage-safe evaluation: exact and near-duplicate images are clustered, linked to patients and
+  kept in one group; splits are stratified and group-aware; scalers are fitted on train only;
+  metrics are reported per model family, split and source.
+- Resumable GPU training: the CNN stage writes an atomic checkpoint after every epoch, keyed on
+  its inputs, and resumes at the next epoch after an interruption.
 
-## Datasets
+## Architecture
 
-| Source | COVID-19 | Normal | Total |
-| --- | --: | --: | --: |
-| Covid-ChestXray-Dataset | 282 | 8 | 290 |
-| COVID-19 Radiography Database | 3,616 | 10,192 | 13,808 |
-| COVID-QU-Ex Dataset | 11,956 | 10,701 | 22,657 |
+```mermaid
+flowchart LR
+  S1[ieee8023 GitHub] --> RAW
+  S2[Kaggle Radiography v5] --> RAW
+  S3[Kaggle COVID-QU-Ex v7] --> RAW
+  RAW[(data/raw)] --> CAT[(data/catalog)]
+  CAT --> PROC[(data/processed)]
+  PROC --> FEAT[(data/features)]
+  CAT --> SPL[(data/splits)]
+  FEAT --> SPL
+  FEAT --> BASE[(models/baseline)]
+  SPL --> BASE
+  PROC --> CNN[(models/cnn)]
+  SPL --> CNN
+  BASE --> EVAL[(data/eval + reports/metrics.json)]
+  CNN --> EVAL
+  SPL --> EVAL
+  EVAL --> README[README results block]
+  PROC -.-> Q[reports/quality.json]
+```
 
-Images are placed under `./images` and preprocessed (resized to `256×256`).
+## Tech stack
+
+Python 3.12 · DVC · uv · pandas · pyarrow · OpenCV · scikit-image · mahotas · scikit-learn ·
+PyTorch and torchvision (optional extra) · pytest and hypothesis · ruff and mypy (strict) ·
+GitHub Actions.
+
+## Quickstart
+
+```bash
+git clone https://github.com/emanuel-luis/covid19-xray-pipeline && cd covid19-xray-pipeline
+make install     # uv sync --locked (no torch)
+make demo        # the whole pipeline on synthetic images, written to .demo/ (installs the cnn extra)
+make pipeline    # dvc repro on the real sources, then the README results block
+```
+
+`make demo` needs no credentials and no download of datasets. `make pipeline` fetches the real
+datasets. The two Kaggle sources need an API token: set `KAGGLE_API_TOKEN`, or save the token in
+`~/.kaggle/access_token`. The legacy `~/.kaggle/kaggle.json` still works. The token never goes
+into the repository.
+
+The CNN is an optional extra (`make install-cnn`, or `uv sync --extra cnn`). It installs CPU wheels
+on Linux and CUDA 13.0 wheels on Windows, which download about 3 GB. Without the extra, set
+`train_cnn.enabled: false` and the pipeline runs the classical baseline only.
+
+## Pipeline stages
+
+| Stage | Input | Output | Contract and quality checks |
+| --- | --- | --- | --- |
+| ingest | pinned source versions in `params.yaml` | `data/raw/<source>` | `_manifest.json` with sha256 per file, license and citation; skipped when the manifest matches |
+| catalog | `data/raw` | `data/catalog` | content-hash `image_id`; exact duplicates collapsed; near-duplicate clusters; patient-aware `group_id`; rejects for missing, undecodable and label-conflicting files |
+| process | catalog | `data/processed`, `reports/quality.json` | resize and pad to a square, optional CLAHE; rejects for preprocessing errors; quality report |
+| features | processed images | `data/features` | 119 handcrafted features, all finite float64; rejects for non-finite values |
+| split | catalog, features | `data/splits` | stratified, group-aware train, val and test; fails if a group straddles splits or a split lacks a class |
+| train_baseline | features, splits | `models/baseline` | scaler inside the sklearn pipeline, fitted on train; candidate chosen on validation F1 |
+| train_cnn | processed images, splits | `models/cnn` | ResNet-18 transfer learning; per-epoch checkpoints; can be disabled |
+| evaluate | splits, both model families | `data/eval`, `reports/metrics.json` | metrics per family, split and source; fixed 0.5 threshold |
+| report | `reports/metrics.json` | README results block | `covidxr report --check` fails on a stale block |
+
+## Project structure
+
+```
+src/covidxr/        pipeline code: one module per stage, contracts, config, CLI
+  sources/          source adapters (ieee8023, Kaggle, synthetic)
+  training/         baseline and CNN training
+tests/              unit, end-to-end (synthetic) and external (network) tests
+docs/               DATA.md, DECISIONS.md, REFACTOR_PLAN.md
+notebooks/legacy/   the 2022 notebook, unchanged
+dvc.yaml            the stage graph
+params.yaml         every tunable value; params.ci.yaml is the synthetic profile for CI
+```
 
 ## Results (pipeline)
 
@@ -36,6 +113,9 @@ Not generated yet: run `make pipeline`.
 
 ## Results (2022 notebook)
 
+The 2022 notebook fitted the scaler before the split and left out one source, so these numbers
+are not comparable with the pipeline results above.
+
 | Model | F1 | Accuracy | Specificity | Recall | Precision |
 | --- | --: | --: | --: | --: | --: |
 | MLPClassifier | 0.9637 | 0.9692 | 0.9710 | 0.9668 | 0.9605 |
@@ -43,35 +123,18 @@ Not generated yet: run `make pipeline`.
 | SVC | 0.9469 | 0.9554 | 0.9637 | 0.9440 | 0.9499 |
 | LGBMClassifier | 0.9408 | 0.9499 | 0.9546 | 0.9434 | 0.9382 |
 
-(Full table for all ~10 models in the notebook.)
+The full table for all ~10 models is in the notebook (`notebooks/legacy/`).
 
-## Tech stack
+## Datasets
 
-Python · Jupyter · scikit-learn · XGBoost · LightGBM · image preprocessing.
+Versions are pinned in `params.yaml`. Licenses, citations and how labels are derived are in
+[docs/DATA.md](docs/DATA.md). Images and derived data are never committed.
 
-## How to run
-
-The 2022 scripts are being rebuilt as one DVC pipeline (`covidxr`); the plan is in
-[docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest,
-catalog, process, features, split, train_baseline, train_cnn and evaluate.
-
-```bash
-make install      # uv sync --locked
-make install-cnn  # the same plus torch and torchvision, needed by the train_cnn stage
-make demo         # the pipeline on synthetic images, written to .demo/
-make pipeline  # dvc repro on the real sources, then the README results block
-```
-
-The CNN (transfer learning, ResNet-18 by default) is an optional extra: `uv sync --extra cnn`
-installs CPU wheels on Linux and CUDA 13.0 wheels on Windows. `train_cnn` saves a checkpoint
-after every epoch under `data/.cache/cnn/`, so an interrupted run (`dvc repro` or
-`covidxr train-cnn`) continues at the next epoch. Set `train_cnn.enabled: false` to skip it.
-
-The two Kaggle sources need a Kaggle API token: set `KAGGLE_API_TOKEN`, or save the token in
-`~/.kaggle/access_token`. The legacy `~/.kaggle/kaggle.json` (username and key) still works. The
-token never goes into the repository.
-
-The 2022 notebook is kept, unchanged, in `notebooks/legacy/`.
+| Source | Pinned version | License |
+| --- | --- | --- |
+| [Covid-ChestXray-Dataset](https://github.com/ieee8023/covid-chestxray-dataset) | commit 7854329 | metadata CC BY-NC-SA 4.0, per-image licenses in the metadata |
+| [COVID-19 Radiography Database](https://www.kaggle.com/datasets/tawsifurrahman/covid19-radiography-database) | Kaggle version 5 | academic and non-commercial use, see the Kaggle page |
+| [COVID-QU-Ex](https://www.kaggle.com/datasets/anasmohammedtahir/covidqu) | Kaggle version 7 | CC BY-SA 4.0 |
 
 ## Publications
 
