@@ -116,7 +116,7 @@ def test_resume_equals_an_uninterrupted_run(
     assert not list(full.cnn_cache.glob("*"))  # checkpoints are dropped after success
 
     root, layout = _root(pipeline_root, tmp_path, "interrupted")
-    key = cnn.checkpoint_key(cfg, layout)
+    key = cnn.checkpoint_key(cfg, layout, "cpu")
     real_save = cnn._save_checkpoint
 
     def save_then_die(path: Path, state: dict[str, object]) -> None:
@@ -161,7 +161,7 @@ def test_outputs_and_a_different_key_does_not_resume(
     monkeypatch.setattr(cnn, "_save_checkpoint", save_then_die)
     with pytest.raises(_Interrupted):
         cnn.run_train_cnn(cfg, root)
-    old = cnn.checkpoint_key(cfg, layout)
+    old = cnn.checkpoint_key(cfg, layout, "cpu")
     assert (layout.cnn_cache / old / "last.pt").is_file()
 
     monkeypatch.setattr(cnn, "_save_checkpoint", real_save)
@@ -186,3 +186,46 @@ def test_outputs_and_a_different_key_does_not_resume(
     assert preds["y_score"].between(0, 1).all()
     assert preds["split"].tolist() == splits.loc[preds["image_id"], "split"].tolist()
     assert len(preds) == (splits["split"] != "train").sum()
+
+
+@pytest.mark.timeout(240)
+def test_changed_processed_run_does_not_resume(
+    ci_cfg: Config, pipeline_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, layout = _root(pipeline_root, tmp_path, "root")
+    cfg = _cfg(ci_cfg, epochs=2, patience=5)
+    real_save = cnn._save_checkpoint
+
+    def save_then_die(path: Path, state: dict[str, object]) -> None:
+        real_save(path, state)
+        raise _Interrupted
+
+    monkeypatch.setattr(cnn, "_save_checkpoint", save_then_die)
+    with pytest.raises(_Interrupted):
+        cnn.run_train_cnn(cfg, root)
+    monkeypatch.setattr(cnn, "_save_checkpoint", real_save)
+    run = layout.processed_dir / "_run.json"  # the images were reprocessed: same tables
+    run.write_text(run.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    cnn.run_train_cnn(cfg, root)
+    out = json.loads((layout.models_cnn / "_run.json").read_text(encoding="utf-8"))
+    assert out["resumed_from_epoch"] is None and out["epochs_run"] == 2
+
+
+@pytest.mark.timeout(240)
+def test_corrupt_checkpoint_starts_fresh(
+    ci_cfg: Config,
+    pipeline_root: Path,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    root, layout = _root(pipeline_root, tmp_path, "root")
+    cfg = _cfg(ci_cfg, epochs=1)
+    ckpt = layout.cnn_cache / cnn.checkpoint_key(cfg, layout, "cpu")
+    ckpt.mkdir(parents=True)
+    (ckpt / "last.pt").write_bytes(b"not a checkpoint")
+    with caplog.at_level("WARNING", logger="covidxr"):
+        cnn.run_train_cnn(cfg, root)
+    assert sum("unusable checkpoint" in r.message for r in caplog.records) == 1
+    out = json.loads((layout.models_cnn / "_run.json").read_text(encoding="utf-8"))
+    assert out["resumed_from_epoch"] is None and out["epochs_run"] == 1
+    assert not ckpt.exists()

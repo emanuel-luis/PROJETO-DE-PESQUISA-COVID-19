@@ -62,9 +62,20 @@ def test_checkpoint_key_follows_params_and_inputs_but_not_num_workers(
     ci_cfg: Config, pipeline_root: Path
 ) -> None:
     layout = Layout(pipeline_root)
-    key = checkpoint_key(ci_cfg, layout)
+    key = checkpoint_key(ci_cfg, layout, "cpu")
     assert len(key) == 16
-    assert checkpoint_key(_cnn(ci_cfg, num_workers=3), layout) == key
+    assert checkpoint_key(_cnn(ci_cfg, num_workers=3), layout, "cpu") == key
     for changes in ({"lr": 0.1}, {"epochs": 5}, {"device": "cuda"}, {"arch": "efficientnet_b0"}):
-        assert checkpoint_key(_cnn(ci_cfg, **changes), layout) != key
-    assert checkpoint_key(dataclasses.replace(ci_cfg, seed=1), layout) != key
+        assert checkpoint_key(_cnn(ci_cfg, **changes), layout, "cpu") != key
+    assert checkpoint_key(dataclasses.replace(ci_cfg, seed=1), layout, "cpu") != key
+    assert checkpoint_key(ci_cfg, layout, "cuda") != key  # a CUDA checkpoint never resumes on CPU
+
+
+def test_checkpoint_key_follows_the_processed_run(
+    ci_cfg: Config, pipeline_root: Path, tmp_path: Path
+) -> None:
+    layout = copy_dirs(pipeline_root, tmp_path, "data/splits", "data/processed")
+    key = checkpoint_key(ci_cfg, layout, "cpu")
+    run = layout.processed_dir / "_run.json"
+    run.write_text(run.read_text(encoding="utf-8") + " ", encoding="utf-8")  # same tables
+    assert checkpoint_key(ci_cfg, layout, "cpu") != key
