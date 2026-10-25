@@ -87,11 +87,37 @@ stages:
       - train_baseline.mlp
     outs:
       - models/baseline
+  train_cnn:
+    cmd: covidxr train-cnn
+    deps:
+      - data/splits
+      - data/processed
+      - src/covidxr/training/cnn.py
+      - src/covidxr/contracts.py
+    # num_workers is left out: it never changes the output. Per-epoch checkpoints live in
+    # data/.cache/cnn (not an out: DVC deletes outs before the stage runs), so an interrupted
+    # `dvc repro` resumes at the next epoch
+    params:
+      - seed
+      - train_cnn.enabled
+      - train_cnn.arch
+      - train_cnn.weights
+      - train_cnn.input_size
+      - train_cnn.epochs
+      - train_cnn.batch_size
+      - train_cnn.lr
+      - train_cnn.weight_decay
+      - train_cnn.patience
+      - train_cnn.device
+      - train_cnn.amp
+    outs:
+      - models/cnn
   evaluate:
     cmd: covidxr evaluate
     deps:
       - data/splits
       - models/baseline
+      - models/cnn
       - src/covidxr/evaluate.py
       - src/covidxr/contracts.py
     params:

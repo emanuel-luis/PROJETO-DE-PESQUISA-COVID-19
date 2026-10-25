@@ -20,6 +20,11 @@ class Layout:
         return self.root / "data" / ".cache"
 
     @property
+    def cnn_cache(self) -> Path:
+        """Per-key training checkpoints; outside models/cnn because DVC deletes a stage's outs."""
+        return self.raw_cache / "cnn"
+
+    @property
     def catalog_dir(self) -> Path:
         return self.root / "data" / "catalog"
 

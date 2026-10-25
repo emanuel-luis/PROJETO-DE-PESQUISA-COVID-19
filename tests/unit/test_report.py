@@ -16,7 +16,13 @@ _TEST = {
     "f1": 0.6667,
     "roc_auc": None,
 }
-METRICS = {"threshold": 0.5, "models": {"baseline": {"selected": "mlp", "test": _TEST}}}
+METRICS = {
+    "threshold": 0.5,
+    "models": {
+        "baseline": {"selected": "mlp", "test": _TEST},
+        "cnn": {"selected": "resnet18", "test": _TEST},
+    },
+}
 README = f"# Title\n\n{START}\nplaceholder\n{END}\n\nrest\n"
 
 
@@ -29,8 +35,9 @@ def _root(tmp_path: Path, readme: str = README) -> Path:
 
 def test_render_table() -> None:
     lines = render_table(METRICS).splitlines()
-    assert lines[0].startswith("| Model | Selected | F1 |") and lines[0].endswith("| Test images |")
+    assert lines[0].startswith("| Family | Model | F1 |") and lines[0].endswith("| Test images |")
     assert lines[2] == "| baseline | mlp | 0.6667 | 0.7000 | 0.8000 | 0.6000 | 0.7500 | n/a | 10 |"
+    assert lines[3] == "| cnn | resnet18 | 0.6667 | 0.7000 | 0.8000 | 0.6000 | 0.7500 | n/a | 10 |"
     assert lines[-1] == "Test split, decision threshold 0.5."
 
 
@@ -77,3 +84,29 @@ def test_cli_report_without_markers(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert cli.main(["--root", str(root), "report"]) == 1
     err = capsys.readouterr().err
     assert "markers" in err and "Traceback" not in err
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{not json",
+        "[]",
+        '{"threshold": 0.5}',
+        '{"threshold": 0.5, "models": []}',
+        '{"threshold": 0.5, "models": {"baseline": {"selected": "mlp"}}}',
+        '{"threshold": 0.5, "models": {"baseline": {"selected": "mlp", "test": {"n": 1}}}}',
+        '{"threshold": 0.5, "models": {"baseline": {"selected": "mlp", "test": "x"}}}',
+    ],
+)
+@pytest.mark.parametrize("check", [False, True])
+def test_malformed_metrics_fail_in_one_line(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], content: str, check: bool
+) -> None:
+    root = _root(tmp_path)
+    (root / "reports" / "metrics.json").write_text(content, encoding="utf-8")
+    argv = ["--root", str(root), "report", *(["--check"] if check else [])]
+    assert cli.main(argv) == 1
+    err = capsys.readouterr().err
+    assert "malformed or incomplete" in err and "Traceback" not in err
+    assert len(err.strip().splitlines()) == 1
+    assert (root / "README.md").read_text(encoding="utf-8") == README

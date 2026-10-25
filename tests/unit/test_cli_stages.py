@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from helpers import torch_available
 
 from covidxr import cli
 from covidxr.layout import Layout
@@ -20,7 +21,12 @@ def test_ingest_catalog_run_all(ci_params: Path, tmp_path: Path) -> None:
     assert layout.catalog_table.is_file()
 
     other = tmp_path / "other"
-    assert cli.main(_argv(ci_params, other, "run-all")) == 0
+    params = tmp_path / "run-all.yaml"
+    data = yaml.safe_load(ci_params.read_text(encoding="utf-8"))
+    data["train_cnn"]["enabled"] = torch_available()  # the CNN stage needs the cnn extra
+    params.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert cli.main(_argv(params, other, "run-all")) == 0
+    assert (Layout(other).models_cnn / "_run.json").is_file()
     assert Layout(other).catalog_rejects.is_file()
 
 

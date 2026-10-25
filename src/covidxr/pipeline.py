@@ -16,6 +16,7 @@ STAGES: tuple[str, ...] = (
     "features",
     "split",
     "train_baseline",
+    "train_cnn",
     "evaluate",
 )
 
@@ -57,6 +58,12 @@ def _train_baseline(cfg: Config, root: Path) -> None:
     run_train_baseline(cfg, root)
 
 
+def _train_cnn(cfg: Config, root: Path) -> None:
+    from covidxr.training.cnn import run_train_cnn
+
+    run_train_cnn(cfg, root)
+
+
 def _evaluate(cfg: Config, root: Path) -> None:
     from covidxr.evaluate import run_evaluate
 
@@ -70,6 +77,7 @@ _RUNNERS: dict[str, Callable[[Config, Path], None]] = {
     "features": _features,
     "split": _split,
     "train_baseline": _train_baseline,
+    "train_cnn": _train_cnn,
     "evaluate": _evaluate,
 }
 

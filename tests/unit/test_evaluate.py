@@ -2,13 +2,15 @@ import json
 from pathlib import Path
 
 import pytest
-from helpers import copy_dirs
+from helpers import copy_dirs, empty_cnn
 
+from covidxr import cli
 from covidxr.config import Config
-from covidxr.contracts import EVAL
-from covidxr.errors import SourceUnavailableError
+from covidxr.contracts import EVAL, PREDICTIONS
+from covidxr.errors import ContractError, SourceUnavailableError
 from covidxr.evaluate import binary_metrics, run_evaluate
-from covidxr.io import read_table
+from covidxr.io import read_table, write_table
+from covidxr.layout import Layout
 from covidxr.split import run_split
 from covidxr.training.baseline import run_train_baseline
 
@@ -39,6 +41,7 @@ def test_run_evaluate(ci_cfg: Config, pipeline_root: Path, tmp_path: Path) -> No
     layout = copy_dirs(pipeline_root, tmp_path, "data/catalog", "data/features")
     run_split(ci_cfg, tmp_path)
     run_train_baseline(ci_cfg, tmp_path)
+    empty_cnn(layout)  # a skipped CNN: evaluate keeps only the baseline
     run_evaluate(ci_cfg, tmp_path)
     metrics = json.loads(layout.metrics_json.read_text(encoding="utf-8"))
     assert metrics["threshold"] == 0.5 and list(metrics["models"]) == ["baseline"]
@@ -47,6 +50,7 @@ def test_run_evaluate(ci_cfg: Config, pipeline_root: Path, tmp_path: Path) -> No
     assert list(base["test_by_source"]) == ["synthetic"]
     assert base["test_by_source"]["synthetic"] == base["test"]
     ev = read_table(layout.eval_table, EVAL)
+    assert set(ev["family"]) == {"baseline"} and ev["model"].eq(base["selected"]).all()
     assert (ev["y_pred"] == (ev["y_score"] >= 0.5)).all()
     assert (layout.eval_dir / "_run.json").is_file()
     first = layout.metrics_json.read_bytes()
@@ -61,3 +65,50 @@ def test_missing_predictions(ci_cfg: Config, pipeline_root: Path, tmp_path: Path
     run_split(ci_cfg, tmp_path)
     with pytest.raises(SourceUnavailableError, match="train-baseline"):
         run_evaluate(ci_cfg, tmp_path)
+
+
+def _baseline_root(cfg: Config, pipeline_root: Path, tmp_path: Path) -> Layout:
+    layout = copy_dirs(pipeline_root, tmp_path, "data/catalog", "data/features")
+    run_split(cfg, tmp_path)
+    run_train_baseline(cfg, tmp_path)
+    return layout
+
+
+def test_missing_cnn_predictions(ci_cfg: Config, pipeline_root: Path, tmp_path: Path) -> None:
+    _baseline_root(ci_cfg, pipeline_root, tmp_path)
+    with pytest.raises(SourceUnavailableError, match="train-cnn"):
+        run_evaluate(ci_cfg, tmp_path)
+
+
+def test_every_table_empty(ci_cfg: Config, pipeline_root: Path, tmp_path: Path) -> None:
+    layout = _baseline_root(ci_cfg, pipeline_root, tmp_path)
+    empty_cnn(layout)
+    table = layout.models_baseline / "predictions.parquet"
+    write_table(PREDICTIONS.schema.empty_table().to_pandas(), table, PREDICTIONS)
+    with pytest.raises(SourceUnavailableError, match="nothing to evaluate"):
+        run_evaluate(ci_cfg, tmp_path)
+
+
+def test_predictions_for_unknown_images(
+    ci_cfg: Config,
+    pipeline_root: Path,
+    tmp_path: Path,
+    repo_root: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    layout = _baseline_root(ci_cfg, pipeline_root, tmp_path)
+    empty_cnn(layout)
+    table = layout.models_baseline / "predictions.parquet"
+    preds = read_table(table, PREDICTIONS)
+    preds.loc[0, "image_id"] = "f" * 64
+    write_table(preds, table, PREDICTIONS)
+    with pytest.raises(ContractError, match="missing from data/splits"):
+        run_evaluate(ci_cfg, tmp_path)
+    assert (
+        cli.main(
+            ["--params", str(repo_root / "params.ci.yaml"), "--root", str(tmp_path), "evaluate"]
+        )
+        == 1
+    )
+    err = capsys.readouterr().err
+    assert "Traceback" not in err and len(err.strip().splitlines()) == 1
