@@ -44,6 +44,17 @@ def test_second_call_skips_and_force_refetches(
     assert run_json.read_bytes() != before
 
 
+def test_skip_restores_missing_run_json(
+    ci_cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_ingest(ci_cfg, tmp_path, "synthetic")
+    run_json = Layout(tmp_path).raw_dir("synthetic") / "_run.json"
+    run_json.unlink()
+    monkeypatch.setattr(SyntheticSource, "fetch", _no_fetch)
+    run_ingest(ci_cfg, tmp_path, "synthetic")
+    assert json.loads(run_json.read_text(encoding="utf-8"))["skipped"] is True
+
+
 def test_missing_file_triggers_refetch(ci_cfg: Config, tmp_path: Path) -> None:
     m = run_ingest(ci_cfg, tmp_path, "synthetic")
     raw = Layout(tmp_path).raw_dir("synthetic")

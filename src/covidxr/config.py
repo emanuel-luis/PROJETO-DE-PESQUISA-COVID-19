@@ -143,10 +143,51 @@ def load_config(path: Path) -> Config:
     for key in sections:
         if key not in data:
             raise ConfigError(f"params.{key}: missing key")
-    return Config(
+    cfg = Config(
         seed=_coerce(data["seed"], int, "seed"),
         ingest=_ingest(data["ingest"]),
         catalog=_build(CatalogConfig, data["catalog"], "catalog"),
+    )
+    _validate(cfg)
+    return cfg
+
+
+def _check(ok: bool, where: str, rule: str) -> None:
+    if not ok:
+        raise ConfigError(f"{where}: {rule}")
+
+
+def _validate(cfg: Config) -> None:
+    """Range checks that the type coercion cannot express."""
+    for name, src in cfg.ingest.sources.items():
+        where = f"ingest.sources.{name}"
+        if isinstance(src, SyntheticConfig):
+            n = src.n_per_class
+            _check(n >= 1, f"{where}.n_per_class", "must be >= 1")
+            _check(
+                1 <= src.n_patients_per_class <= n,
+                f"{where}.n_patients_per_class",
+                "must be between 1 and n_per_class",
+            )
+            _check(
+                16 <= src.min_side <= src.max_side,
+                f"{where}.min_side",
+                "must satisfy 16 <= min_side <= max_side",
+            )
+            _check(src.signal >= 0, f"{where}.signal", "must be >= 0")
+            for field in ("n_exact_duplicates", "n_label_conflicts", "n_corrupt"):
+                value = getattr(src, field)
+                _check(0 <= value <= n, f"{where}.{field}", "must be between 0 and n_per_class")
+        elif isinstance(src, KaggleConfig):
+            _check(bool(src.handle), f"{where}.handle", "must not be empty")
+            _check(src.version >= 1, f"{where}.version", "must be >= 1")
+        else:
+            _check(bool(src.ref), f"{where}.ref", "must not be empty")
+            _check(bool(src.views), f"{where}.views", "must not be empty")
+    _check(
+        0 <= cfg.catalog.near_dup_max_hamming <= 64,
+        "catalog.near_dup_max_hamming",
+        "must be between 0 and 64",
     )
 
 

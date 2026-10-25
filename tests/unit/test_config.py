@@ -75,6 +75,42 @@ def test_unknown_and_missing_and_ill_typed_keys(tmp_path: Path, repo_root: Path)
         load_config(_write(tmp_path, data))
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("n_per_class", 0, "n_per_class: must be >= 1"),
+        ("n_patients_per_class", 0, "n_patients_per_class"),
+        ("n_patients_per_class", 61, "n_patients_per_class"),
+        ("min_side", 100, "min_side"),
+        ("min_side", 8, "min_side"),
+        ("signal", -0.1, "signal"),
+        ("n_corrupt", -1, "n_corrupt"),
+    ],
+)
+def test_synthetic_ranges(
+    tmp_path: Path, repo_root: Path, field: str, value: object, match: str
+) -> None:
+    data = _base(repo_root)
+    data["ingest"]["sources"]["synthetic"][field] = value  # type: ignore[index]
+    with pytest.raises(ConfigError, match=match):
+        load_config(_write(tmp_path, data))
+
+
+def test_other_ranges(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["catalog"] = {"near_dup_max_hamming": 65}
+    with pytest.raises(ConfigError, match="near_dup_max_hamming"):
+        load_config(_write(tmp_path, data))
+    real = yaml.safe_load((repo_root / "params.yaml").read_text(encoding="utf-8"))
+    real["ingest"]["sources"]["kaggle_covidqu"]["version"] = 0
+    with pytest.raises(ConfigError, match="kaggle_covidqu.version"):
+        load_config(_write(tmp_path, real))
+    real["ingest"]["sources"]["kaggle_covidqu"]["version"] = 7
+    real["ingest"]["sources"]["ieee8023"]["views"] = []
+    with pytest.raises(ConfigError, match="ieee8023.views"):
+        load_config(_write(tmp_path, real))
+
+
 def test_missing_file(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="cannot read"):
         load_config(tmp_path / "absent.yaml")

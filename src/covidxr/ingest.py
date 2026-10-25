@@ -27,6 +27,12 @@ def _current_manifest(raw_dir: Path, source: str, version: str) -> Manifest | No
     return m if all((raw_dir / rel).is_file() for rel in m.files) else None
 
 
+def _write_run(cfg: Config, source: str, dest: Path, manifest: Manifest, *, skipped: bool) -> None:
+    with stage_run("ingest", dest, params=(cfg.seed, cfg.ingest.sources[source])) as st:
+        st.output_rows = manifest.file_count
+        st.extra = {"source": source, "version": manifest.version, "skipped": skipped}
+
+
 def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> Manifest:
     if source not in cfg.ingest.sources:
         raise ConfigError(
@@ -41,6 +47,9 @@ def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> 
         current = _current_manifest(dest, source, adapter.version())
         if current is not None:
             log.info("ingest %s: up to date (%s)", source, current.version)
+            if not (dest / "_run.json").is_file():
+                # A run that died between replace_dir and _run.json left complete data.
+                _write_run(cfg, source, dest, current, skipped=True)
             return current
 
     tmp = layout.raw_root / f".tmp-{source}-{uuid.uuid4().hex}"
@@ -53,8 +62,6 @@ def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> 
         shutil.rmtree(tmp, ignore_errors=True)
         raise
 
-    with stage_run("ingest", dest, params=(cfg.seed, source_cfg)) as st:
-        st.output_rows = manifest.file_count
-        st.extra = {"source": source, "version": manifest.version, "skipped": False}
+    _write_run(cfg, source, dest, manifest, skipped=False)
     log.info("ingest %s: %d files", source, manifest.file_count)
     return manifest
