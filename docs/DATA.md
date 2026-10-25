@@ -4,8 +4,9 @@ What the pipeline reads, what it writes at each layer, and what it refuses. Vers
 in `params.yaml`; table schemas live in `src/covidxr/contracts.py`.
 
 Images and every derived file (`data/`, `models/`, `reports/figures/`) never enter git. They are
-ignored by `.gitignore` and tracked by DVC. Only code, params, `dvc.yaml`, `dvc.lock` and the
-small metrics files under `reports/` are committed. The CI profile (`params.ci.yaml`) swaps the
+ignored by `.gitignore` and tracked by DVC. Only code, params and `dvc.yaml` are committed,
+plus `dvc.lock` and the small metrics files under `reports/` once the pipeline has run on the
+real data. The CI profile (`params.ci.yaml`) swaps the
 real sources for a synthetic generator, so CI never downloads real data.
 
 ## Sources

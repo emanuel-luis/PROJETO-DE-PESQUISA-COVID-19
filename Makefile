@@ -26,7 +26,7 @@ pipeline: ## Reproduce the DVC pipeline and refresh the README results
 	uv run covidxr report
 
 demo: install-cnn ## Run the whole pipeline on synthetic images in .demo
-	uv run --extra cnn covidxr run-all --params params.ci.yaml --root .demo
+	uv run --extra cnn covidxr --params params.ci.yaml --root .demo run-all
 
 clean-demo: ## Remove the demo output
 	rm -rf .demo
