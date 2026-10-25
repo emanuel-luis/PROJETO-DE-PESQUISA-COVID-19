@@ -45,6 +45,23 @@ jobs:
       # external (network, Kaggle) and gpu tests stay deselected: CI never downloads real data
       - run: make test
 
+  test-windows:
+    name: test (windows, without the cnn extra)
+    runs-on: windows-latest
+    needs: lint
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with: { python-version: "3.12", enable-cache: true }
+      # no cnn extra: the cu130 torch wheels are ~3 GB; the CNN tests skip, the CNN stage is off
+      - run: uv sync --locked
+      # same selection as `make test` (make is not on the Windows runner)
+      - run: uv run pytest -m "not external and not gpu"
+
   pipeline:
     name: pipeline (dvc repro on synthetic images)
     runs-on: ubuntu-latest

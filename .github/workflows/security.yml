@@ -1,0 +1,35 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths: [pyproject.toml, uv.lock, .github/workflows/security.yml]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pip-audit:
+    name: pip-audit (locked base and dev dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with: { python-version: "3.12", enable-cache: true }
+      # The cnn extra is left out: its torch pins carry local versions (+cpu, +cu130) from the
+      # PyTorch indexes, which PyPI-based auditing cannot resolve.
+      - run: uv export --locked --no-emit-project --no-hashes -o requirements-audit.txt
+      # PYSEC-2026-2447 (diskcache, pickle cache): dev-only, pulled in by dvc, no fixed release yet.
+      # Drop the flag once diskcache publishes a fix.
+      - run: uvx pip-audit -r requirements-audit.txt --no-deps --disable-pip --ignore-vuln PYSEC-2026-2447
