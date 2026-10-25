@@ -1,0 +1,14 @@
+seed: 42
+ingest:
+  sources:
+    synthetic:
+      n_per_class: 60
+      n_patients_per_class: 20
+      min_side: 48
+      max_side: 96
+      signal: 0.3
+      n_exact_duplicates: 3
+      n_label_conflicts: 1
+      n_corrupt: 2
+catalog:
+  near_dup_max_hamming: 4
