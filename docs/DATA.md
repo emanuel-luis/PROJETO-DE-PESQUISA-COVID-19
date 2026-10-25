@@ -106,7 +106,7 @@ Rows a stage cannot use are written to that stage's `rejects.parquet` (columns `
 | `extraction_error` | features | feature extraction raised |
 
 Exact duplicates with the same label are collapsed into one row (`sources` lists the copies).
-Near-duplicates (the same radiograph re-encoded, resized or lightly cropped, often in two sources)
+Near-duplicates (the same radiograph re-encoded or resized, often in two sources)
 are found in two steps: pairs whose dHash differs by at most `catalog.near_dup_max_hamming` bits
 are candidates, and a candidate becomes a link only when the mean absolute difference of the two
 32x32 grey thumbnails is at most `catalog.near_dup_max_mad` grey levels. The hash alone is not

@@ -62,8 +62,8 @@ def verified_edges(
     """The candidate pairs whose thumbnails differ by at most max_mad grey levels on average.
 
     Single linkage chains any run of look-alikes into one group, so an edge must mean the same
-    radiograph. The mean absolute difference of the 4x4 block means is never larger than that
-    of the pixels, so the cheap pass on 8 x 8 blocks cannot drop a pair the full check keeps.
+    radiograph. The mean absolute difference over an 8 x 8 grid of 4 x 4 block means is never larger
+    than that of the pixels, so this cheap pass cannot drop a pair the full check keeps.
     """
     n = len(thumbs)
     flat = thumbs.reshape(n, THUMB * THUMB)
