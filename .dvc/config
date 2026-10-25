@@ -1,0 +1,4 @@
+[core]
+    no_analytics = true
+[cache]
+    type = hardlink,copy
