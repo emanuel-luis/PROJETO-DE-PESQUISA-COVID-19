@@ -51,5 +51,18 @@ train_baseline:
     alpha: 1.0e-4
     learning_rate_init: 0.01
     max_iter: 500
+train_cnn:
+  enabled: true
+  arch: resnet18
+  weights: imagenet
+  input_size: 224
+  epochs: 10
+  batch_size: 32
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  patience: 3
+  device: auto
+  num_workers: 0
+  amp: true
 evaluate:
   threshold: 0.5
