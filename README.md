@@ -7,8 +7,8 @@
 ![Jupyter](https://img.shields.io/badge/Jupyter-F37626?logo=jupyter&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
 
-> **Published research** — presented at **ERCEMAPI** (Regional Computing School, CE/MA/PI).
-> <!-- confirm exact title, co-authors, and year -->
+> Published research: two papers at ERCEMAPI 2022, the Regional Computing School of Ceará,
+> Maranhão and Piauí (see [Publications](#publications)).
 
 ## What this demonstrates
 
@@ -44,12 +44,43 @@ Python · Jupyter · scikit-learn · XGBoost · LightGBM · image preprocessing.
 
 ## How to run
 
+The 2022 scripts are being rebuilt as one DVC pipeline (`covidxr`); the plan is in
+[docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest and
+catalog.
+
 ```bash
-pip install -r requirements.txt
-# download the three datasets into ./images (see links above)
-jupyter notebook   # run the preprocessing + benchmarking notebook
+make install   # uv sync --locked
+make demo      # ingest + catalog on synthetic images, written to .demo/
+make pipeline  # dvc repro on the real sources; the Kaggle sources need KAGGLE_API_TOKEN
 ```
+
+The 2022 notebook is kept, unchanged, in `notebooks/legacy/`.
+
+## Publications
+
+The 2022 research behind this repository produced two publications at ERCEMAPI 2022 (titles in
+Portuguese, as published):
+
+1. Sousa Filho, E. L. C. de, Magno, P. G. S., Santos, C. J. P., Silva, G. L. F. da, Diniz, J. O.
+   B., & Quintanilha, D. B. P. (2022). Um Método Baseado em Radiomics e MLP para Diagnóstico
+   Automático de COVID-19 a partir de Raio-X de Tórax. In *Anais da X Escola Regional de
+   Computação do Ceará, Maranhão e Piauí (ERCEMAPI 2022)* (pp. 188-197). Sociedade Brasileira de
+   Computação - SBC. <https://doi.org/10.5753/ercemapi.2022.226508>
+2. Silva, G., S. Filho, E., Magno, P., Santos, C., Diniz, J., Ferreira, J., Matos, C., & Silva, A.
+   (2022). Desenvolvimento de uma aplicação web para o diagnóstico da COVID-19 usando conceitos,
+   técnicas e ferramentas de Inteligência Artificial. In *Minicursos da ERCEMAPI 2022*
+   (pp. 122-139). SBC. <https://doi.org/10.5753/sbc.11014.1.6>
+
+Paper 1 describes the original method: radiomics texture features extracted from each X-ray and
+classified with an MLP. The pipeline's classical baseline (the `train_baseline` stage, still being
+built) re-implements it with the fixes recorded in [docs/DECISIONS.md](docs/DECISIONS.md), so its
+metrics can be compared with the 2022 results above. Paper 2 is a short-course chapter on building
+a web application for COVID-19 diagnosis.
+
+To cite this repository, use GitHub's "Cite this repository" button, which reads
+[CITATION.cff](CITATION.cff). BibTeX for both entries is in
+[docs/publications.bib](docs/publications.bib).
 
 ## License
 
-MIT (add a `LICENSE` file).
+MIT, see [LICENSE](LICENSE).
