@@ -12,7 +12,7 @@ import pandas as pd
 from covidxr.config import Ieee8023Config
 from covidxr.errors import SourceUnavailableError
 from covidxr.io import atomic_path, sha256_file
-from covidxr.sources._common import hash_files, now_iso
+from covidxr.sources._common import hash_files, now_iso, with_retries
 from covidxr.sources.base import Manifest, RawImage
 
 log = logging.getLogger(__name__)
@@ -72,8 +72,12 @@ class Ieee8023Source:
         if archive.is_file():
             log.info("using cached archive %s", archive)
         else:
-            with atomic_path(archive) as part:
-                _download(self._url(), part)
+
+            def attempt() -> None:
+                with atomic_path(archive) as part:
+                    _download(self._url(), part)
+
+            with_retries(attempt, what=f"download {self._url()}")
         _extract(archive, tmp_dir)
         files = hash_files(tmp_dir)
         return Manifest(

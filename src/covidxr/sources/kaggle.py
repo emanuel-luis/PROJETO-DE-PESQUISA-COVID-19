@@ -8,7 +8,7 @@ from typing import ClassVar, Literal
 
 from covidxr.config import KaggleConfig
 from covidxr.errors import SourceUnavailableError
-from covidxr.sources._common import hash_files, now_iso
+from covidxr.sources._common import hash_files, now_iso, with_retries
 from covidxr.sources.base import Manifest, RawImage
 
 Label = Literal["covid", "normal"]
@@ -16,20 +16,30 @@ _IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg"})
 
 
 def kaggle_credentials_available() -> bool:
-    """True when a Kaggle credential source exists. Never reads or logs a value."""
+    """True when a Kaggle credential source exists. Never reads or logs a value.
+
+    Same order as kagglehub: the API token (env KAGGLE_API_TOKEN, then ~/.kaggle/access_token
+    or access_token.txt), then the legacy username/key (env or kaggle.json).
+    """
     env = os.environ
-    if env.get("KAGGLE_API_TOKEN") or (env.get("KAGGLE_USERNAME") and env.get("KAGGLE_KEY")):
+    kaggle_dir = Path.home() / ".kaggle"
+    if env.get("KAGGLE_API_TOKEN"):
         return True
-    candidates = [Path.home() / ".kaggle" / "kaggle.json", Path.home() / ".kaggle" / "access_token"]
+    if any((kaggle_dir / name).is_file() for name in ("access_token", "access_token.txt")):
+        return True
+    if env.get("KAGGLE_USERNAME") and env.get("KAGGLE_KEY"):
+        return True
+    legacy = [kaggle_dir / "kaggle.json"]
     if env.get("KAGGLE_CONFIG_DIR"):
-        candidates.append(Path(env["KAGGLE_CONFIG_DIR"]) / "kaggle.json")
-    return any(p.is_file() for p in candidates)
+        legacy.append(Path(env["KAGGLE_CONFIG_DIR"]) / "kaggle.json")
+    return any(p.is_file() for p in legacy)
 
 
 def require_credentials(source_name: str) -> None:
     if not kaggle_credentials_available():
         raise SourceUnavailableError(
-            "set KAGGLE_API_TOKEN (or KAGGLE_USERNAME/KAGGLE_KEY, or ~/.kaggle/kaggle.json), "
+            "set KAGGLE_API_TOKEN or save the Kaggle API token in ~/.kaggle/access_token "
+            "(legacy: KAGGLE_USERNAME/KAGGLE_KEY or ~/.kaggle/kaggle.json), "
             f"or remove {source_name} from ingest.sources in params.yaml"
         )
 
@@ -75,7 +85,10 @@ class KaggleSource(ABC):
 
     def fetch(self, tmp_dir: Path, cache_dir: Path) -> Manifest:
         require_credentials(self.name)
-        src = download(self.cfg.handle, self.cfg.version, cache_dir, source=self.name)
+        src = with_retries(
+            lambda: download(self.cfg.handle, self.cfg.version, cache_dir, source=self.name),
+            what=f"kaggle download {self.cfg.handle} v{self.cfg.version}",
+        )
         for img in self._scan(src):
             dest = tmp_dir / img.relpath
             dest.parent.mkdir(parents=True, exist_ok=True)

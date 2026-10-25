@@ -18,8 +18,42 @@ stages:
       - src/covidxr/sources
       - src/covidxr/catalog.py
       - src/covidxr/imaging.py
+      - src/covidxr/contracts.py
     params:
       - ingest
       - catalog
     outs:
       - data/catalog
+  process:
+    cmd: covidxr process
+    deps:
+      - data/raw
+      - data/catalog
+      - src/covidxr/process.py
+      - src/covidxr/imaging.py
+      - src/covidxr/parallel.py
+      - src/covidxr/contracts.py
+    # workers is left out: it never changes the output
+    params:
+      - process.size
+      - process.clahe
+    outs:
+      - data/processed
+    metrics:
+      - reports/quality.json:
+          cache: false
+  features:
+    cmd: covidxr features
+    deps:
+      - data/processed
+      - src/covidxr/features.py
+      - src/covidxr/imaging.py
+      - src/covidxr/parallel.py
+      - src/covidxr/contracts.py
+    params:
+      - features.first_order_bins
+      - features.haralick
+      - features.zernike
+      - features.lbp
+    outs:
+      - data/features

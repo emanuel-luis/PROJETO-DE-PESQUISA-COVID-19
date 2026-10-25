@@ -196,7 +196,7 @@ def quality_report(catalog, rejects, processed) -> dict[str, object]
 
 # features.py
 def feature_columns(cfg: FeaturesConfig) -> list[str]
-    # fo_* (16), har_* (13), tas_00..tas_53, zer_00..zer_NN (25 at degree 8), lbp_00..lbp_{bins-1}
+    # fo_* (17), har_* (13), tas_00..tas_53, zer_00..zer_NN (25 at degree 8), lbp_00..lbp_{bins-1}
 def extract_features(img, cfg: FeaturesConfig) -> dict[str, float]   # keys == feature_columns
 def run_features(cfg: Config, root: Path) -> None   # non-finite -> reject
 
@@ -358,7 +358,7 @@ test F1 ≥ 0.8 on synthetic, rerun gives identical predictions, CNN runs when t
 
 ## 8. PRs
 
-1. **Packaging, hygiene, ingest and catalog** (`feat/pipeline-ingest-catalog` → `master`).
+1. **Packaging, hygiene, ingest and catalog** (`feat/pipeline-ingest-catalog` → `master`, renamed `main` after PR 1).
    Foundation (pyproject, uv.lock, Makefile, LICENSE, .dvc, dvc.yaml with ingest+catalog,
    params, `cli/config/contracts/io/runmeta/layout/errors/pipeline`), sources + ingest, imaging
    (decode, dhash) + catalog. Deletes `main.py`, `pre_processing/`, `requirements.txt`; moves the

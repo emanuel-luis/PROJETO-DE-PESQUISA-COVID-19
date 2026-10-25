@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 
 from covidxr import cli
 from covidxr.layout import Layout
@@ -32,7 +33,10 @@ def test_catalog_before_ingest_fails_cleanly(
 
 
 def test_kaggle_without_credentials(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ci_params: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     for var in ("KAGGLE_API_TOKEN", "KAGGLE_USERNAME", "KAGGLE_KEY", "KAGGLE_CONFIG_DIR"):
         monkeypatch.delenv(var, raising=False)
@@ -41,12 +45,9 @@ def test_kaggle_without_credentials(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
     params = tmp_path / "params.yaml"
-    params.write_text(
-        "seed: 1\n"
-        "ingest:\n  sources:\n    kaggle_radiography:\n      handle: a/b\n      version: 1\n"
-        "catalog:\n  near_dup_max_hamming: 4\n",
-        encoding="utf-8",
-    )
+    data = yaml.safe_load(ci_params.read_text(encoding="utf-8"))
+    data["ingest"] = {"sources": {"kaggle_radiography": {"handle": "a/b", "version": 1}}}
+    params.write_text(yaml.safe_dump(data), encoding="utf-8")
     argv = _argv(params, tmp_path / "root", "ingest", "--source", "kaggle_radiography")
     assert cli.main(argv) == 1
     err = capsys.readouterr().err

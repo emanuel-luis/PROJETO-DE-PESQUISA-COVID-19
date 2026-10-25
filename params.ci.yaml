@@ -12,3 +12,24 @@ ingest:
       n_corrupt: 2
 catalog:
   near_dup_max_hamming: 4
+process:
+  size: 64
+  clahe:
+    enabled: false
+    clip_limit: 2.0
+    tile_grid: 8
+  workers: 1
+features:
+  workers: 1
+  first_order_bins: 256
+  haralick:
+    distance: 1
+    ignore_zeros: false
+  zernike:
+    radius: 32
+    degree: 8
+  lbp:
+    points: 8
+    radius: 3
+    method: default
+    bins: 10
