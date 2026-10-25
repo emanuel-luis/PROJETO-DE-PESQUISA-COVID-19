@@ -23,3 +23,28 @@ As imagens foram extraídas manualmente dos links abaixo, e inseridas no caminho
 | KNeighborsClassifier       | 0.891851 | 0.911987 |    0.949656 | 0.860352 |  0.925744 |
 | LinearDiscriminantAnalysis | 0.887678 | 0.906632 |    0.929945 | 0.874674 |  0.901073 |
 | LinearSVC                  |  0.88466 | 0.903474 |    0.922346 | 0.877604 |  0.891829 |
+
+## Publicações
+
+A pesquisa de 2022 deste repositório gerou dois trabalhos publicados na ERCEMAPI 2022:
+
+1. Sousa Filho, E. L. C. de, Magno, P. G. S., Santos, C. J. P., Silva, G. L. F. da, Diniz, J. O.
+   B., & Quintanilha, D. B. P. (2022). Um Método Baseado em Radiomics e MLP para Diagnóstico
+   Automático de COVID-19 a partir de Raio-X de Tórax. In *Anais da X Escola Regional de
+   Computação do Ceará, Maranhão e Piauí (ERCEMAPI 2022)* (pp. 188-197). Sociedade Brasileira de
+   Computação - SBC. <https://doi.org/10.5753/ercemapi.2022.226508>
+2. Silva, G., S. Filho, E., Magno, P., Santos, C., Diniz, J., Ferreira, J., Matos, C., & Silva, A.
+   (2022). Desenvolvimento de uma aplicação web para o diagnóstico da COVID-19 usando conceitos,
+   técnicas e ferramentas de Inteligência Artificial. In *Minicursos da ERCEMAPI 2022*
+   (pp. 122-139). SBC. <https://doi.org/10.5753/sbc.11014.1.6>
+
+O artigo 1 descreve o método original: atributos radiômicos de textura extraídos de cada
+radiografia e classificados por uma MLP. O baseline clássico do pipeline (etapa `train_baseline`,
+ainda em construção) reimplementa esse método com as correções registradas em
+[docs/DECISIONS.md](docs/DECISIONS.md), o que permite comparar as métricas dele com os resultados
+de 2022 acima. O trabalho 2 é o capítulo de minicurso sobre o desenvolvimento de uma aplicação web
+para o diagnóstico da COVID-19.
+
+Para citar o repositório, use o botão "Cite this repository" do GitHub, que lê o
+[CITATION.cff](CITATION.cff). O BibTeX das duas referências está em
+[docs/publications.bib](docs/publications.bib).

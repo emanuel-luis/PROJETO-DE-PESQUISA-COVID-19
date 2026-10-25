@@ -1,0 +1,71 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite the paper in preferred-citation."
+type: software
+title: "covidxr: reproducible pipeline for COVID-19 classification from chest X-rays"
+authors:
+  - family-names: "Sousa Filho"
+    given-names: "Emanuel L. C. de"
+repository-code: "https://github.com/emanuel-luis/PROJETO-DE-PESQUISA-COVID-19"
+license: MIT
+keywords:
+  - covid-19
+  - chest x-ray
+  - radiomics
+  - machine learning
+  - data pipeline
+preferred-citation:
+  type: conference-paper
+  title: "Um Método Baseado em Radiomics e MLP para Diagnóstico Automático de COVID-19 a partir de Raio-X de Tórax"
+  authors:
+    - family-names: "Sousa Filho"
+      given-names: "Emanuel L. C. de"
+    - family-names: "Magno"
+      given-names: "Paulo G. S."
+    - family-names: "Santos"
+      given-names: "Camyla J. P."
+    - family-names: "Silva"
+      given-names: "Giovanni L. F. da"
+    - family-names: "Diniz"
+      given-names: "João O. B."
+    - family-names: "Quintanilha"
+      given-names: "Darlan B. P."
+  collection-title: "Anais da X Escola Regional de Computação do Ceará, Maranhão e Piauí (ERCEMAPI 2022)"
+  collection-type: proceedings
+  publisher:
+    name: "Sociedade Brasileira de Computação - SBC"
+  year: 2022
+  month: 9
+  start: 188
+  end: 197
+  doi: "10.5753/ercemapi.2022.226508"
+  url: "https://doi.org/10.5753/ercemapi.2022.226508"
+references:
+  - type: generic
+    title: "Desenvolvimento de uma aplicação web para o diagnóstico da COVID-19 usando conceitos, técnicas e ferramentas de Inteligência Artificial"
+    authors:
+      - family-names: "Silva"
+        given-names: "Giovanni"
+      - family-names: "S. Filho"
+        given-names: "Emanuel"
+      - family-names: "Magno"
+        given-names: "Paulo"
+      - family-names: "Santos"
+        given-names: "Camyla"
+      - family-names: "Diniz"
+        given-names: "João"
+      - family-names: "Ferreira"
+        given-names: "Jonnison"
+      - family-names: "Matos"
+        given-names: "Caio"
+      - family-names: "Silva"
+        given-names: "Aristófanes"
+    collection-title: "Minicursos da ERCEMAPI 2022"
+    collection-type: book
+    publisher:
+      name: "SBC"
+    year: 2022
+    month: 9
+    start: 122
+    end: 139
+    doi: "10.5753/sbc.11014.1.6"
+    url: "https://doi.org/10.5753/sbc.11014.1.6"
