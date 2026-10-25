@@ -53,13 +53,19 @@ Python · Jupyter · scikit-learn · XGBoost · LightGBM · image preprocessing.
 
 The 2022 scripts are being rebuilt as one DVC pipeline (`covidxr`); the plan is in
 [docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest,
-catalog, process, features, split, train_baseline and evaluate.
+catalog, process, features, split, train_baseline, train_cnn and evaluate.
 
 ```bash
-make install   # uv sync --locked
-make demo      # the pipeline on synthetic images, written to .demo/
+make install      # uv sync --locked
+make install-cnn  # the same plus torch and torchvision, needed by the train_cnn stage
+make demo         # the pipeline on synthetic images, written to .demo/
 make pipeline  # dvc repro on the real sources, then the README results block
 ```
+
+The CNN (transfer learning, ResNet-18 by default) is an optional extra: `uv sync --extra cnn`
+installs CPU wheels on Linux and CUDA 13.0 wheels on Windows. `train_cnn` saves a checkpoint
+after every epoch under `data/.cache/cnn/`, so an interrupted run (`dvc repro` or
+`covidxr train-cnn`) continues at the next epoch. Set `train_cnn.enabled: false` to skip it.
 
 The two Kaggle sources need a Kaggle API token: set `KAGGLE_API_TOKEN`, or save the token in
 `~/.kaggle/access_token`. The legacy `~/.kaggle/kaggle.json` (username and key) still works. The
