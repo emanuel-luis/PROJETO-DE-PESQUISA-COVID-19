@@ -57,3 +57,74 @@ stages:
       - features.lbp
     outs:
       - data/features
+  split:
+    cmd: covidxr split
+    deps:
+      - data/catalog
+      - data/features
+      - src/covidxr/split.py
+      - src/covidxr/contracts.py
+    params:
+      - seed
+      - split
+    outs:
+      - data/splits
+  train_baseline:
+    cmd: covidxr train-baseline
+    deps:
+      - data/features
+      - data/splits
+      - src/covidxr/training/baseline.py
+      - src/covidxr/features.py
+      - src/covidxr/contracts.py
+    # n_jobs is left out: it never changes the fitted model; data/features covers the columns
+    params:
+      - seed
+      - train_baseline.candidates
+      - train_baseline.logreg
+      - train_baseline.random_forest.n_estimators
+      - train_baseline.random_forest.max_depth
+      - train_baseline.mlp
+    outs:
+      - models/baseline
+  train_cnn:
+    cmd: covidxr train-cnn
+    deps:
+      - data/splits
+      - data/processed
+      - src/covidxr/training/cnn.py
+      - src/covidxr/imaging.py
+      - src/covidxr/contracts.py
+    # num_workers is left out: it never changes the output. Per-epoch checkpoints live in
+    # data/.cache/cnn (not an out: DVC deletes outs before the stage runs), so an interrupted
+    # `dvc repro` resumes at the next epoch
+    params:
+      - seed
+      - train_cnn.enabled
+      - train_cnn.arch
+      - train_cnn.weights
+      - train_cnn.input_size
+      - train_cnn.epochs
+      - train_cnn.batch_size
+      - train_cnn.lr
+      - train_cnn.weight_decay
+      - train_cnn.patience
+      - train_cnn.device
+      - train_cnn.amp
+    outs:
+      - models/cnn
+  evaluate:
+    cmd: covidxr evaluate
+    deps:
+      - data/splits
+      - models/baseline
+      - models/cnn
+      - src/covidxr/evaluate.py
+      - src/covidxr/contracts.py
+    params:
+      - evaluate
+    outs:
+      - data/eval
+    metrics:
+      - reports/metrics.json:
+          cache: false

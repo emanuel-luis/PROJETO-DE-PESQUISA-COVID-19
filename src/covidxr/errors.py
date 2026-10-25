@@ -19,3 +19,7 @@ class SourceUnavailableError(CovidxrError):
 
 class ImageDecodeError(CovidxrError):
     """Image bytes cannot be decoded."""
+
+
+class MissingDependencyError(CovidxrError):
+    """An optional dependency (extra) is not installed."""

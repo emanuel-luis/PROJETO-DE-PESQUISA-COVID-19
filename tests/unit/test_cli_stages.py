@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from helpers import torch_available
 
 from covidxr import cli
 from covidxr.layout import Layout
@@ -20,7 +21,12 @@ def test_ingest_catalog_run_all(ci_params: Path, tmp_path: Path) -> None:
     assert layout.catalog_table.is_file()
 
     other = tmp_path / "other"
-    assert cli.main(_argv(ci_params, other, "run-all")) == 0
+    params = tmp_path / "run-all.yaml"
+    data = yaml.safe_load(ci_params.read_text(encoding="utf-8"))
+    data["train_cnn"]["enabled"] = torch_available()  # the CNN stage needs the cnn extra
+    params.write_text(yaml.safe_dump(data), encoding="utf-8")
+    assert cli.main(_argv(params, other, "run-all")) == 0
+    assert (Layout(other).models_cnn / "_run.json").is_file()
     assert Layout(other).catalog_rejects.is_file()
 
 
@@ -54,3 +60,13 @@ def test_kaggle_without_credentials(
     assert "KAGGLE_API_TOKEN" in err and "Traceback" not in err
     assert len(err.strip().splitlines()) == 1
     assert not list((tmp_path / "root" / "data" / "raw").glob(".tmp-*"))
+
+
+@pytest.mark.parametrize("command", ["split", "train-baseline", "evaluate"])
+def test_later_stages_without_inputs_fail_cleanly(
+    command: str, ci_params: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(_argv(ci_params, tmp_path, command)) == 1
+    err = capsys.readouterr().err
+    assert "run `covidxr" in err and "Traceback" not in err
+    assert len(err.strip().splitlines()) == 1

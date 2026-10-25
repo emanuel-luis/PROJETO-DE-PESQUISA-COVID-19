@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from helpers import pipeline_cfg
 
 from covidxr.config import Config, load_config
 
@@ -45,9 +46,9 @@ def ci_cfg(ci_params: Path) -> Config:
 
 @pytest.fixture(scope="session")
 def pipeline_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A root with ingest, catalog, process and features run once on the CI params."""
+    """A root with every pipeline stage run once on the CI params."""
     from covidxr.pipeline import run_pipeline
 
     root = tmp_path_factory.mktemp("pipeline")
-    run_pipeline(load_config(REPO_ROOT / "params.ci.yaml"), root)
+    run_pipeline(pipeline_cfg(load_config(REPO_ROOT / "params.ci.yaml")), root)
     return root

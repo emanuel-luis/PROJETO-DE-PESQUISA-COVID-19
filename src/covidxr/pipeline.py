@@ -9,7 +9,16 @@ from covidxr.errors import ConfigError
 
 log = logging.getLogger(__name__)
 
-STAGES: tuple[str, ...] = ("ingest", "catalog", "process", "features")
+STAGES: tuple[str, ...] = (
+    "ingest",
+    "catalog",
+    "process",
+    "features",
+    "split",
+    "train_baseline",
+    "train_cnn",
+    "evaluate",
+)
 
 
 def _ingest(cfg: Config, root: Path) -> None:
@@ -37,11 +46,39 @@ def _features(cfg: Config, root: Path) -> None:
     run_features(cfg, root)
 
 
+def _split(cfg: Config, root: Path) -> None:
+    from covidxr.split import run_split
+
+    run_split(cfg, root)
+
+
+def _train_baseline(cfg: Config, root: Path) -> None:
+    from covidxr.training.baseline import run_train_baseline
+
+    run_train_baseline(cfg, root)
+
+
+def _train_cnn(cfg: Config, root: Path) -> None:
+    from covidxr.training.cnn import run_train_cnn
+
+    run_train_cnn(cfg, root)
+
+
+def _evaluate(cfg: Config, root: Path) -> None:
+    from covidxr.evaluate import run_evaluate
+
+    run_evaluate(cfg, root)
+
+
 _RUNNERS: dict[str, Callable[[Config, Path], None]] = {
     "ingest": _ingest,
     "catalog": _catalog,
     "process": _process,
     "features": _features,
+    "split": _split,
+    "train_baseline": _train_baseline,
+    "train_cnn": _train_cnn,
+    "evaluate": _evaluate,
 }
 
 

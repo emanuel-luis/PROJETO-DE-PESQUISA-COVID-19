@@ -46,6 +46,19 @@ def replace_dir(tmp: Path, dest: Path) -> None:
     tmp.rename(dest)
 
 
+@contextmanager
+def staged_dir(dest: Path) -> Iterator[Path]:
+    """Yield an empty temp sibling of dest; replace_dir it onto dest on success, drop it on error."""
+    tmp = dest.with_name(f".{dest.name}-tmp-{uuid.uuid4().hex}")
+    tmp.mkdir(parents=True)
+    try:
+        yield tmp
+        replace_dir(tmp, dest)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+
+
 def write_table(df: pd.DataFrame, path: Path, c: Contract) -> None:
     table = validate(df, c)
     with atomic_path(path) as tmp:

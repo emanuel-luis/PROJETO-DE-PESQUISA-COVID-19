@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class Command:
     help: str
-    run: Callable[[argparse.Namespace], None]
+    run: Callable[[argparse.Namespace], int | None]
     add_args: Callable[[argparse.ArgumentParser], None] | None = None
 
 
@@ -55,19 +55,58 @@ def _features(args: argparse.Namespace) -> None:
     run_features(load_config(Path(args.params)), Path(args.root))
 
 
+def _split(args: argparse.Namespace) -> None:
+    from covidxr.split import run_split
+
+    run_split(load_config(Path(args.params)), Path(args.root))
+
+
+def _train_baseline(args: argparse.Namespace) -> None:
+    from covidxr.training.baseline import run_train_baseline
+
+    run_train_baseline(load_config(Path(args.params)), Path(args.root))
+
+
+def _train_cnn(args: argparse.Namespace) -> None:
+    from covidxr.training.cnn import run_train_cnn
+
+    run_train_cnn(load_config(Path(args.params)), Path(args.root))
+
+
+def _evaluate(args: argparse.Namespace) -> None:
+    from covidxr.evaluate import run_evaluate
+
+    run_evaluate(load_config(Path(args.params)), Path(args.root))
+
+
+def _report(args: argparse.Namespace) -> int:
+    from covidxr.report import run_report
+
+    return run_report(Path(args.root), check=args.check)
+
+
+def _report_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--check", action="store_true", help="exit 1 if README.md is out of date")
+
+
 def _run_all(args: argparse.Namespace) -> None:
     from covidxr.pipeline import run_pipeline
 
     run_pipeline(load_config(Path(args.params)), Path(args.root))
 
 
-# Subcommand table; later steps register train, evaluate.
+# Subcommand table.
 COMMANDS: dict[str, Command] = {
     "version": Command("print the package version", _version),
     "ingest": Command("fetch one source into data/raw", _ingest, _ingest_args),
     "catalog": Command("build data/catalog from the raw sources", _catalog),
     "process": Command("resize images into data/processed and write the quality report", _process),
     "features": Command("extract handcrafted features into data/features", _features),
+    "split": Command("assign train/val/test splits into data/splits", _split),
+    "train-baseline": Command("train the classical baseline into models/baseline", _train_baseline),
+    "train-cnn": Command("train the CNN into models/cnn (resumes from checkpoints)", _train_cnn),
+    "evaluate": Command("compute metrics into reports/metrics.json", _evaluate),
+    "report": Command("render the README results block from the metrics", _report, _report_args),
     "run-all": Command("run every stage in order", _run_all),
 }
 
@@ -106,8 +145,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     _setup_logging(args.log_level)
     try:
-        args._run(args)
+        code = args._run(args)
     except CovidxrError as e:
         log.error("%s", e)
         return 1
-    return 0
+    return code or 0
