@@ -45,7 +45,7 @@ def ci_cfg(ci_params: Path) -> Config:
 
 @pytest.fixture(scope="session")
 def pipeline_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A root with ingest, catalog, process and features run once on the CI params."""
+    """A root with every pipeline stage run once on the CI params."""
     from covidxr.pipeline import run_pipeline
 
     root = tmp_path_factory.mktemp("pipeline")

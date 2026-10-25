@@ -57,3 +57,48 @@ stages:
       - features.lbp
     outs:
       - data/features
+  split:
+    cmd: covidxr split
+    deps:
+      - data/catalog
+      - data/features
+      - src/covidxr/split.py
+      - src/covidxr/contracts.py
+    params:
+      - seed
+      - split
+    outs:
+      - data/splits
+  train_baseline:
+    cmd: covidxr train-baseline
+    deps:
+      - data/features
+      - data/splits
+      - src/covidxr/training/baseline.py
+      - src/covidxr/features.py
+      - src/covidxr/contracts.py
+    # n_jobs is left out: it never changes the fitted model
+    params:
+      - seed
+      - features
+      - train_baseline.candidates
+      - train_baseline.logreg
+      - train_baseline.random_forest.n_estimators
+      - train_baseline.random_forest.max_depth
+      - train_baseline.mlp
+    outs:
+      - models/baseline
+  evaluate:
+    cmd: covidxr evaluate
+    deps:
+      - data/splits
+      - models/baseline
+      - src/covidxr/evaluate.py
+      - src/covidxr/contracts.py
+    params:
+      - evaluate
+    outs:
+      - data/eval
+    metrics:
+      - reports/metrics.json:
+          cache: false
