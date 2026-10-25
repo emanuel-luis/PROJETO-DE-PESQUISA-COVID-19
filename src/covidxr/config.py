@@ -258,6 +258,13 @@ def _validate(cfg: Config) -> None:
         "must be 'default' or 'uniform'",
     )
     _check(ft.lbp.bins >= 2, "features.lbp.bins", "must be >= 2")
+    if ft.lbp.method == "uniform":
+        # uniform LBP has exactly points + 2 integer codes; other bin counts split them unevenly
+        _check(
+            ft.lbp.bins == ft.lbp.points + 2,
+            "features.lbp.bins",
+            "must equal points + 2 when method is 'uniform'",
+        )
 
 
 def _plain(obj: object) -> object:

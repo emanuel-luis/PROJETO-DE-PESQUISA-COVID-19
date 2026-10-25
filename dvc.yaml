@@ -30,6 +30,7 @@ stages:
       - data/catalog
       - src/covidxr/process.py
       - src/covidxr/imaging.py
+      - src/covidxr/parallel.py
     params:
       - process
     outs:
@@ -42,6 +43,8 @@ stages:
     deps:
       - data/processed
       - src/covidxr/features.py
+      - src/covidxr/imaging.py
+      - src/covidxr/parallel.py
     params:
       - features
     outs:
