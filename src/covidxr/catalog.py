@@ -123,6 +123,8 @@ def build_catalog(
 
     kept: list[_Item] = []
     sources_of: dict[str, list[str]] = {}
+    # Every (source, patient_id) of every copy: a collapsed duplicate still links its patient.
+    patients_of: dict[str, list[tuple[str, str]]] = {}
     collapsed = 0
     for image_id, items in by_id.items():
         if len({it.entry.image.label for it in items}) > 1:
@@ -140,6 +142,13 @@ def build_catalog(
         items.sort(key=lambda it: (rank.get(it.entry.source, len(rank)), it.rel))
         kept.append(items[0])
         sources_of[image_id] = sorted({it.entry.source for it in items})
+        patients_of[image_id] = sorted(
+            {
+                (it.entry.source, it.entry.image.patient_id)
+                for it in items
+                if it.entry.image.patient_id is not None
+            }
+        )
         collapsed += len(items) - 1
     kept.sort(key=lambda it: it.image_id)
 
@@ -150,12 +159,10 @@ def build_catalog(
     owner: dict[tuple[str, str], int] = {}
     patient_edges: list[tuple[int, int]] = []
     for i, it in enumerate(kept):
-        pid = it.entry.image.patient_id
-        if pid is None:
-            continue
-        j = owner.setdefault((it.entry.source, pid), i)
-        if j != i:
-            patient_edges.append((j, i))
+        for patient in patients_of[it.image_id]:
+            j = owner.setdefault(patient, i)
+            if j != i:
+                patient_edges.append((j, i))
     grp_lab = connected_components(n, near + patient_edges)
 
     rows = [

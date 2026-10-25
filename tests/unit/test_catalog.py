@@ -113,6 +113,21 @@ def test_patient_and_near_dup_edges_merge_into_one_group(tmp_path: Path) -> None
     validate(cat, CATALOG)
 
 
+def test_collapsed_duplicate_keeps_patient_link(tmp_path: Path) -> None:
+    # Same bytes listed for P1 and P2: P2's other image must join that group, or P2 could
+    # straddle train and test after the split.
+    shared = textured(7)
+    es = [
+        entry(tmp_path, "a", "a.png", shared, pid="P1"),
+        entry(tmp_path, "a", "b.png", shared, pid="P2"),
+        entry(tmp_path, "a", "c.png", textured(8), pid="P2"),
+    ]
+    cat, rej, stats = build_catalog(es, CFG, ["a"], tmp_path)
+    assert rej.empty and len(cat) == 2
+    assert cat["group_id"].nunique() == 1
+    assert stats["n_groups"] == 1 and stats["max_group_size"] == 2
+
+
 @given(
     st.integers(1, 30).flatmap(
         lambda n: st.tuples(
