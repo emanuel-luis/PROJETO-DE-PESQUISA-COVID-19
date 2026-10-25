@@ -41,7 +41,7 @@ jobs:
         with: { persist-credentials: false }
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with: { python-version: "3.12", enable-cache: true }
-      - run: uv sync --locked
+      - run: uv sync --locked --extra cnn  # Linux resolves the CPU torch wheels
       # external (network, Kaggle) and gpu tests stay deselected: CI never downloads real data
       - run: make test
 
@@ -57,14 +57,14 @@ jobs:
         with: { persist-credentials: false }
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with: { python-version: "3.12", enable-cache: true }
-      - run: uv sync --locked
+      - run: uv sync --locked --extra cnn
       # the CI profile swaps the real sources for the synthetic one; same DAG, same commands
       - run: cp params.ci.yaml params.yaml
       - run: uv run dvc repro
       - name: Every stage output is complete
         run: |
           for d in data/raw/synthetic data/catalog data/processed data/features \
-            data/splits models/baseline data/eval; do
+            data/splits models/baseline models/cnn data/eval; do
             test -f "$d/_run.json" || { echo "missing $d/_run.json"; exit 1; }
           done
           test -f reports/quality.json
