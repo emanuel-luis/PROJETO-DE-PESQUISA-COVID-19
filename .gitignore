@@ -1,2 +1,39 @@
-__pycache__
-.*/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments and secrets
+.venv/
+.env
+kaggle.json
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+
+# Pipeline data and artifacts (managed by DVC, never committed)
+/data/
+/models/
+/images/
+/.demo/
+/reports/figures/
+
+# DVC internals
+/.dvc/cache
+/.dvc/tmp
+/.dvc/config.local
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+seed: 42
+ingest:
+  sources:
+    ieee8023:
+      repo: ieee8023/covid-chestxray-dataset
+      ref: 78543292f8b01d5e0ed1d0e15dce71949f0657bb
+      views: [AP, AP Supine]
+    kaggle_radiography:
+      handle: tawsifurrahman/covid19-radiography-database
+      version: 5
+    kaggle_covidqu:
+      handle: anasmohammedtahir/covidqu
+      version: 7
+catalog:
+  near_dup_max_hamming: 4
