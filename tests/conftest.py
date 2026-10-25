@@ -7,6 +7,16 @@ from covidxr.config import Config, load_config
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Download retries back off with sleep; tests record the delays instead of waiting."""
+    from covidxr.sources import _common
+
+    delays: list[float] = []
+    monkeypatch.setattr(_common, "_sleep", delays.append)
+    return delays
+
+
 @pytest.fixture
 def repo_root() -> Path:
     return REPO_ROOT
