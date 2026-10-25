@@ -9,7 +9,7 @@ from covidxr.errors import ConfigError
 
 log = logging.getLogger(__name__)
 
-STAGES: tuple[str, ...] = ("ingest", "catalog")
+STAGES: tuple[str, ...] = ("ingest", "catalog", "process", "features")
 
 
 def _ingest(cfg: Config, root: Path) -> None:
@@ -25,9 +25,23 @@ def _catalog(cfg: Config, root: Path) -> None:
     run_catalog(cfg, root)
 
 
+def _process(cfg: Config, root: Path) -> None:
+    from covidxr.process import run_process
+
+    run_process(cfg, root)
+
+
+def _features(cfg: Config, root: Path) -> None:
+    from covidxr.features import run_features
+
+    run_features(cfg, root)
+
+
 _RUNNERS: dict[str, Callable[[Config, Path], None]] = {
     "ingest": _ingest,
     "catalog": _catalog,
+    "process": _process,
+    "features": _features,
 }
 
 
