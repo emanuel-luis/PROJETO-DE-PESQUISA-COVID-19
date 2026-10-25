@@ -33,7 +33,7 @@ def test_process_outputs(ci_cfg: Config, tmp_path: Path) -> None:
         119,
         0,
     )
-    assert [p.name for p in layout.processed_dir.parent.iterdir()] == [
+    assert sorted(p.name for p in layout.processed_dir.parent.iterdir()) == [
         "catalog",
         "processed",
         "raw",
