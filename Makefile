@@ -18,8 +18,9 @@ test: ## Run tests, including slow ones
 test-fast: ## Run the default fast tests
 	uv run pytest
 
-pipeline: ## Reproduce the DVC pipeline
+pipeline: ## Reproduce the DVC pipeline and refresh the README results
 	uv run dvc repro
+	uv run covidxr report
 
 demo: ## Run the whole pipeline on synthetic images in .demo
 	uv run covidxr run-all --params params.ci.yaml --root .demo
