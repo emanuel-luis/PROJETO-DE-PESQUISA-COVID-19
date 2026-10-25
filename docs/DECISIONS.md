@@ -16,5 +16,10 @@ decision 9). High-impact ones wait for the owner's answer and are marked "pendin
 | 2026-10-25 | Zernike radius | Half the processed image size (128 at 256 px) instead of 10 | A 10 px disk around the centre of mass described almost nothing of a 256 px X-ray |
 | 2026-10-25 | Near-duplicates with conflicting labels | Reported in the quality report, not rejected | They share a `group_id`, so they never straddle train and test |
 | 2026-10-25 | Decision threshold | 0.5, fixed | No threshold tuning on test; keeps the comparison with 2022 simple |
+| 2026-10-25 | DVC config | `core.analytics = false` | DVC 3.67 rejects the `core.no_analytics` key written at init |
+| 2026-10-25 | DVC dep on `data/raw`, the parent of the foreach ingest outputs | Kept; `dvc dag` resolves it (plan section 9 fallback not needed) | Checked with DVC 3.67.1 |
+| 2026-10-25 | CI timing | A minimal `ci.yml` (lint, tests, `dvc repro` on synthetic images) ships with PR 1; PR 4 adds the Windows job, `security.yml` and Dependabot | Merges need green CI (program decision 13), so the gate must exist from the first PR |
+| 2026-10-25 | Kaggle credentials | Not present on the dev machine; phase 1 is verified with the synthetic source and the ieee8023 GitHub source. The Kaggle sources stay in `params.yaml` and fail with a one-line hint until a token is set | The owner creates the token; it never enters the repo |
+| 2026-10-25 | Publications | README "Publications" section (mirrored in `README.pt-BR.md`), `CITATION.cff` (preferred citation = ERCEMAPI 2022 paper, reference = the short-course chapter) and `docs/publications.bib`, from the Crossref metadata | Owner request, shipped with PR 1 |
 | 2026-10-25 | Repo rename (e.g. `covid19-xray-pipeline`) | Pending owner's answer | Outward-facing and irreversible in practice; work continues on feature branches |
 | 2026-10-25 | Purge `csv/features_1.csv` and `csv/features_2.csv` (~66 MB each) from history | Pending owner's answer | History rewrite plus force-push on a public repo |
