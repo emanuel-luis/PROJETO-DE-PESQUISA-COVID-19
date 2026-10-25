@@ -13,6 +13,7 @@ ingest:
       version: 7
 catalog:
   near_dup_max_hamming: 4
+  near_dup_max_mad: 6.0
 process:
   size: 256
   clahe:

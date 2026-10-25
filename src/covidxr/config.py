@@ -58,6 +58,7 @@ class IngestConfig:
 @dataclass(frozen=True)
 class CatalogConfig:
     near_dup_max_hamming: int
+    near_dup_max_mad: float
 
 
 @dataclass(frozen=True)
@@ -327,6 +328,11 @@ def _validate(cfg: Config) -> None:
         0 <= cfg.catalog.near_dup_max_hamming <= 64,
         "catalog.near_dup_max_hamming",
         "must be between 0 and 64",
+    )
+    _check(
+        0 <= cfg.catalog.near_dup_max_mad <= 255,
+        "catalog.near_dup_max_mad",
+        "must be between 0 and 255",
     )
     pr, ft = cfg.process, cfg.features
     _check(pr.size >= 32, "process.size", "must be >= 32")
