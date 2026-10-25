@@ -64,6 +64,10 @@ class Layout:
         return self.root / "data" / "splits"
 
     @property
+    def splits_table(self) -> Path:
+        return self.splits_dir / "splits.parquet"
+
+    @property
     def models_baseline(self) -> Path:
         return self.root / "models" / "baseline"
 
@@ -74,6 +78,10 @@ class Layout:
     @property
     def eval_dir(self) -> Path:
         return self.root / "data" / "eval"
+
+    @property
+    def eval_table(self) -> Path:
+        return self.eval_dir / "eval.parquet"
 
     @property
     def reports_dir(self) -> Path:
