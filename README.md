@@ -4,6 +4,7 @@
 > Research pipeline for detecting COVID-19 (SARS-CoV-2) from medical images: preprocessing of
 > **36,755** chest X-rays and a benchmark of ~10 machine-learning classifiers.
 
+[![ci](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/emanuel-luis/covid19-xray-pipeline/actions/workflows/ci.yml)
 ![Jupyter](https://img.shields.io/badge/Jupyter-F37626?logo=jupyter&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
 
@@ -45,14 +46,18 @@ Python · Jupyter · scikit-learn · XGBoost · LightGBM · image preprocessing.
 ## How to run
 
 The 2022 scripts are being rebuilt as one DVC pipeline (`covidxr`); the plan is in
-[docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest and
-catalog.
+[docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest,
+catalog, process and features.
 
 ```bash
 make install   # uv sync --locked
-make demo      # ingest + catalog on synthetic images, written to .demo/
-make pipeline  # dvc repro on the real sources; the Kaggle sources need KAGGLE_API_TOKEN
+make demo      # the pipeline on synthetic images, written to .demo/
+make pipeline  # dvc repro on the real sources
 ```
+
+The two Kaggle sources need a Kaggle API token: set `KAGGLE_API_TOKEN`, or save the token in
+`~/.kaggle/access_token`. The legacy `~/.kaggle/kaggle.json` (username and key) still works. The
+token never goes into the repository.
 
 The 2022 notebook is kept, unchanged, in `notebooks/legacy/`.
 
