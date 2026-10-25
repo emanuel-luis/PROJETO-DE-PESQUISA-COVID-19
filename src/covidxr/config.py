@@ -60,15 +60,64 @@ class CatalogConfig:
 
 
 @dataclass(frozen=True)
+class ClaheConfig:
+    enabled: bool
+    clip_limit: float
+    tile_grid: int
+
+
+@dataclass(frozen=True)
+class ProcessConfig:
+    size: int
+    clahe: ClaheConfig
+    workers: int
+
+
+@dataclass(frozen=True)
+class HaralickConfig:
+    distance: int
+    ignore_zeros: bool
+
+
+@dataclass(frozen=True)
+class ZernikeConfig:
+    radius: int
+    degree: int
+
+
+@dataclass(frozen=True)
+class LbpConfig:
+    points: int
+    radius: int
+    method: str
+    bins: int
+
+
+@dataclass(frozen=True)
+class FeaturesConfig:
+    workers: int
+    first_order_bins: int
+    haralick: HaralickConfig
+    zernike: ZernikeConfig
+    lbp: LbpConfig
+
+
+@dataclass(frozen=True)
 class Config:
     seed: int
     ingest: IngestConfig
     catalog: CatalogConfig
+    process: ProcessConfig
+    features: FeaturesConfig
 
 
 def _coerce(value: object, hint: Any, where: str) -> Any:
     ok = False
-    if hint is int:
+    if dataclasses.is_dataclass(hint):
+        return _build(hint, value, where)
+    if hint is bool:
+        ok = isinstance(value, bool)
+    elif hint is int:
         ok = isinstance(value, int) and not isinstance(value, bool)
     elif hint is float:
         ok = isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -136,7 +185,7 @@ def load_config(path: Path) -> Config:
     except yaml.YAMLError as e:
         raise ConfigError(f"invalid YAML in {path}: {e}") from e
     data = _mapping(raw, "params")
-    sections = ("seed", "ingest", "catalog")
+    sections = ("seed", "ingest", "catalog", "process", "features")
     for key in data:
         if key not in sections:
             raise ConfigError(f"params.{key}: unknown key")
@@ -147,6 +196,8 @@ def load_config(path: Path) -> Config:
         seed=_coerce(data["seed"], int, "seed"),
         ingest=_ingest(data["ingest"]),
         catalog=_build(CatalogConfig, data["catalog"], "catalog"),
+        process=_build(ProcessConfig, data["process"], "process"),
+        features=_build(FeaturesConfig, data["features"], "features"),
     )
     _validate(cfg)
     return cfg
@@ -189,6 +240,24 @@ def _validate(cfg: Config) -> None:
         "catalog.near_dup_max_hamming",
         "must be between 0 and 64",
     )
+    pr, ft = cfg.process, cfg.features
+    _check(pr.size >= 32, "process.size", "must be >= 32")
+    _check(pr.workers >= 1, "process.workers", "must be >= 1")
+    _check(pr.clahe.clip_limit > 0, "process.clahe.clip_limit", "must be > 0")
+    _check(pr.clahe.tile_grid >= 1, "process.clahe.tile_grid", "must be >= 1")
+    _check(ft.workers >= 1, "features.workers", "must be >= 1")
+    _check(ft.first_order_bins >= 2, "features.first_order_bins", "must be >= 2")
+    _check(ft.haralick.distance >= 1, "features.haralick.distance", "must be >= 1")
+    _check(ft.zernike.radius >= 1, "features.zernike.radius", "must be >= 1")
+    _check(1 <= ft.zernike.degree <= 20, "features.zernike.degree", "must be between 1 and 20")
+    _check(ft.lbp.points >= 4, "features.lbp.points", "must be >= 4")
+    _check(ft.lbp.radius >= 1, "features.lbp.radius", "must be >= 1")
+    _check(
+        ft.lbp.method in ("default", "uniform"),
+        "features.lbp.method",
+        "must be 'default' or 'uniform'",
+    )
+    _check(ft.lbp.bins >= 2, "features.lbp.bins", "must be >= 2")
 
 
 def _plain(obj: object) -> object:

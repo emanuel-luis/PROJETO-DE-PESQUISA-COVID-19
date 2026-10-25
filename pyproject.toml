@@ -14,6 +14,8 @@ dependencies = [
     "opencv-python-headless",
     "pyyaml",
     "kagglehub>=0.4.3",
+    "mahotas>=1.4.19",
+    "scikit-image>=0.26.0",
 ]
 
 [project.scripts]
@@ -37,7 +39,7 @@ build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["feature_extractor", "notebooks"]
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 extend-select = ["BLE"]
@@ -48,7 +50,6 @@ quote-style = "double"
 [tool.mypy]
 strict = true
 files = ["src"]
-exclude = ["feature_extractor"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config -m 'not slow and not external and not gpu'"
@@ -61,5 +62,9 @@ timeout = 60
 testpaths = ["tests"]
 
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*"]
+module = ["pyarrow", "pyarrow.*", "mahotas", "mahotas.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["covidxr.features"]
+disallow_untyped_calls = false
