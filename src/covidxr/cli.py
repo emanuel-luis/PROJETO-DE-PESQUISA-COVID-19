@@ -43,17 +43,31 @@ def _catalog(args: argparse.Namespace) -> None:
     run_catalog(load_config(Path(args.params)), Path(args.root))
 
 
+def _process(args: argparse.Namespace) -> None:
+    from covidxr.process import run_process
+
+    run_process(load_config(Path(args.params)), Path(args.root))
+
+
+def _features(args: argparse.Namespace) -> None:
+    from covidxr.features import run_features
+
+    run_features(load_config(Path(args.params)), Path(args.root))
+
+
 def _run_all(args: argparse.Namespace) -> None:
     from covidxr.pipeline import run_pipeline
 
     run_pipeline(load_config(Path(args.params)), Path(args.root))
 
 
-# Subcommand table; later steps register process, features, train, evaluate.
+# Subcommand table; later steps register train, evaluate.
 COMMANDS: dict[str, Command] = {
     "version": Command("print the package version", _version),
     "ingest": Command("fetch one source into data/raw", _ingest, _ingest_args),
     "catalog": Command("build data/catalog from the raw sources", _catalog),
+    "process": Command("resize images into data/processed and write the quality report", _process),
+    "features": Command("extract handcrafted features into data/features", _features),
     "run-all": Command("run every stage in order", _run_all),
 }
 

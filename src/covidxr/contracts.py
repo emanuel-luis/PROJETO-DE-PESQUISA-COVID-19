@@ -1,6 +1,6 @@
 """Table schemas (pyarrow) and a small validator."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -68,6 +68,19 @@ REJECTS = Contract(
     ),
     allowed={"reason": REJECT_REASONS},
 )
+
+
+PROCESSED = Contract(
+    "processed",
+    pa.schema([_f("image_id", pa.string()), _f("processed_path", pa.string())]),
+    key="image_id",
+)
+
+
+def features_contract(columns: Sequence[str]) -> Contract:
+    """image_id plus one non-null float64 column per feature."""
+    fields = [_f("image_id", pa.string())] + [_f(c, pa.float64()) for c in columns]
+    return Contract("features", pa.schema(fields), key="image_id")
 
 
 def validate(df: pd.DataFrame, c: Contract) -> pa.Table:

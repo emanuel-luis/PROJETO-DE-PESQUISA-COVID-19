@@ -6,9 +6,13 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from covidxr.config import (
+    ClaheConfig,
+    HaralickConfig,
     Ieee8023Config,
     KaggleConfig,
+    LbpConfig,
     SyntheticConfig,
+    ZernikeConfig,
     load_config,
     params_hash,
 )
@@ -144,3 +148,81 @@ def test_params_hash_shape_and_sensitivity() -> None:
     assert len(h) == 16 and int(h, 16) >= 0
     assert h != params_hash({"a": 2})
     assert params_hash(KaggleConfig("h", 1)) == params_hash({"handle": "h", "version": 1})
+
+
+def test_new_sections_round_trip(repo_root: Path) -> None:
+    cfg = load_config(repo_root / "params.yaml")
+    assert cfg.process.size == 256 and cfg.process.workers == 4
+    assert cfg.process.clahe == ClaheConfig(enabled=False, clip_limit=2.0, tile_grid=8)
+    assert cfg.features.first_order_bins == 256
+    assert cfg.features.haralick == HaralickConfig(distance=1, ignore_zeros=False)
+    assert cfg.features.zernike == ZernikeConfig(radius=128, degree=8)
+    assert cfg.features.lbp == LbpConfig(points=8, radius=3, method="default", bins=10)
+    ci = load_config(repo_root / "params.ci.yaml")
+    assert (ci.process.size, ci.process.workers, ci.features.workers) == (64, 1, 1)
+    assert ci.features.zernike.radius == 32
+
+
+def test_bool_rejects_int_and_missing_section(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["process"]["clahe"]["enabled"] = 1  # type: ignore[index]
+    with pytest.raises(ConfigError, match="process.clahe.enabled: expected bool"):
+        load_config(_write(tmp_path, data))
+    data = _base(repo_root)
+    del data["features"]
+    with pytest.raises(ConfigError, match="features"):
+        load_config(_write(tmp_path, data))
+    data = _base(repo_root)
+    data["features"]["lbp"]["extra"] = 1  # type: ignore[index]
+    with pytest.raises(ConfigError, match="features.lbp.extra: unknown key"):
+        load_config(_write(tmp_path, data))
+
+
+def test_uniform_lbp_needs_points_plus_two_bins(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    lbp = data["features"]["lbp"]  # type: ignore[index]
+    lbp["method"] = "uniform"
+    lbp["bins"] = lbp["points"] + 2
+    assert load_config(_write(tmp_path, data)).features.lbp.bins == 10
+    lbp["bins"] = 9
+    with pytest.raises(ConfigError, match=r"features\.lbp\.bins: must equal points \+ 2"):
+        load_config(_write(tmp_path, data))
+
+
+def test_zernike_radius_follows_process_size(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["process"]["size"] = 128  # type: ignore[index]
+    with pytest.raises(ConfigError, match=r"features\.zernike\.radius: must equal process\.size"):
+        load_config(_write(tmp_path, data))
+    data["features"]["zernike"]["radius"] = 64  # type: ignore[index]
+    assert load_config(_write(tmp_path, data)).features.zernike.radius == 64
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        ("process.size", 31),
+        ("process.workers", 0),
+        ("process.clahe.clip_limit", 0.0),
+        ("process.clahe.tile_grid", 0),
+        ("features.workers", 0),
+        ("features.first_order_bins", 1),
+        ("features.haralick.distance", 0),
+        ("features.zernike.radius", 0),
+        ("features.zernike.degree", 0),
+        ("features.zernike.degree", 21),
+        ("features.lbp.points", 3),
+        ("features.lbp.radius", 0),
+        ("features.lbp.method", "ror"),
+        ("features.lbp.bins", 1),
+    ],
+)
+def test_new_ranges(tmp_path: Path, repo_root: Path, path: str, value: object) -> None:
+    data = _base(repo_root)
+    *parents, leaf = path.split(".")
+    node: dict[str, object] = data
+    for key in parents:
+        node = node[key]  # type: ignore[assignment]
+    node[leaf] = value
+    with pytest.raises(ConfigError, match=path.replace(".", r"\.")):
+        load_config(_write(tmp_path, data))

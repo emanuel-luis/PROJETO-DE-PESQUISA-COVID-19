@@ -13,3 +13,24 @@ ingest:
       version: 7
 catalog:
   near_dup_max_hamming: 4
+process:
+  size: 256
+  clahe:
+    enabled: false
+    clip_limit: 2.0
+    tile_grid: 8
+  workers: 4
+features:
+  workers: 4
+  first_order_bins: 256
+  haralick:
+    distance: 1
+    ignore_zeros: false
+  zernike:
+    radius: 128
+    degree: 8
+  lbp:
+    points: 8
+    radius: 3
+    method: default
+    bins: 10

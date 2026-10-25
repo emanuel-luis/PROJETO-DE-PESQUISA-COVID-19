@@ -36,12 +36,28 @@ class Layout:
         return self.root / "data" / "processed"
 
     @property
+    def processed_table(self) -> Path:
+        return self.processed_dir / "processed.parquet"
+
+    @property
+    def processed_rejects(self) -> Path:
+        return self.processed_dir / "rejects.parquet"
+
+    @property
     def processed_images(self) -> Path:
         return self.processed_dir / "images"
 
     @property
     def features_dir(self) -> Path:
         return self.root / "data" / "features"
+
+    @property
+    def features_table(self) -> Path:
+        return self.features_dir / "features.parquet"
+
+    @property
+    def features_rejects(self) -> Path:
+        return self.features_dir / "rejects.parquet"
 
     @property
     def splits_dir(self) -> Path:

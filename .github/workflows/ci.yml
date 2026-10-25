@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -63,7 +63,8 @@ jobs:
       - run: uv run dvc repro
       - name: Every stage output is complete
         run: |
-          for d in data/raw/synthetic data/catalog; do
+          for d in data/raw/synthetic data/catalog data/processed data/features; do
             test -f "$d/_run.json" || { echo "missing $d/_run.json"; exit 1; }
           done
+          test -f reports/quality.json
       - run: uv run dvc status
