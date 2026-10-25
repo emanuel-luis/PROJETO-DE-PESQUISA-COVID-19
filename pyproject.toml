@@ -16,6 +16,7 @@ dependencies = [
     "kagglehub>=1.0.3,<2",
     "mahotas>=1.4.19",
     "scikit-image>=0.26.0",
+    "scikit-learn>=1.5",
 ]
 
 [project.scripts]
