@@ -13,7 +13,7 @@ dependencies = [
     "pyarrow",
     "opencv-python-headless",
     "pyyaml",
-    "kagglehub>=0.4.3",
+    "kagglehub>=1.0.3,<2",
     "mahotas>=1.4.19",
     "scikit-image>=0.26.0",
 ]

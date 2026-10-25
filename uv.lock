@@ -668,7 +668,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "kagglehub", specifier = ">=0.4.3" },
+    { name = "kagglehub", specifier = ">=1.0.3,<2" },
     { name = "mahotas", specifier = ">=1.4.19" },
     { name = "numpy", specifier = ">=2" },
     { name = "opencv-python-headless" },

@@ -37,7 +37,8 @@ def test_no_credentials(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SourceUnavailableError) as exc:
         require_credentials("kaggle_radiography")
     msg = str(exc.value)
-    assert "KAGGLE_API_TOKEN" in msg and "remove kaggle_radiography from ingest.sources" in msg
+    assert "KAGGLE_API_TOKEN" in msg and "~/.kaggle/access_token" in msg
+    assert "legacy" in msg and "remove kaggle_radiography from ingest.sources" in msg
 
 
 def test_presence_detection(
@@ -54,7 +55,7 @@ def test_presence_detection(
     assert kaggle_credentials_available()
     monkeypatch.delenv("KAGGLE_API_TOKEN")
 
-    for name in ("kaggle.json", "access_token"):
+    for name in ("access_token", "access_token.txt", "kaggle.json"):
         f = clean_env / ".kaggle" / name
         _touch(clean_env, [f".kaggle/{name}"])
         assert kaggle_credentials_available()
