@@ -77,10 +77,9 @@ stages:
       - src/covidxr/training/baseline.py
       - src/covidxr/features.py
       - src/covidxr/contracts.py
-    # n_jobs is left out: it never changes the fitted model
+    # n_jobs is left out: it never changes the fitted model; data/features covers the columns
     params:
       - seed
-      - features
       - train_baseline.candidates
       - train_baseline.logreg
       - train_baseline.random_forest.n_estimators

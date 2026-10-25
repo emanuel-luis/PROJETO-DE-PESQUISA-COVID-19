@@ -269,3 +269,21 @@ def test_split_sizes_must_leave_room_for_train(tmp_path: Path, repo_root: Path) 
     data["split"] = {"test_size": 0.4, "val_size": 0.4}
     with pytest.raises(ConfigError, match="< 0.7"):
         load_config(_write(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    ("test_size", "val_size", "match"),
+    [
+        (0.3, 0.1, r"split\.test_size: must be 1/k"),
+        (0.2, 0.15, r"split\.val_size: \(1 - test_size\) / val_size"),
+    ],
+)
+def test_split_sizes_must_give_whole_folds(
+    tmp_path: Path, repo_root: Path, test_size: float, val_size: float, match: str
+) -> None:
+    data = _base(repo_root)
+    data["split"] = {"test_size": test_size, "val_size": val_size}
+    with pytest.raises(ConfigError, match=match):
+        load_config(_write(tmp_path, data))
+    data["split"] = {"test_size": 0.25, "val_size": 0.25}
+    assert load_config(_write(tmp_path, data)).split.test_size == 0.25
