@@ -1,9 +1,18 @@
+import json
 from pathlib import Path
 
 import pytest
+from helpers import pipeline_cfg, torch_available
 
 from covidxr.config import Config
-from covidxr.contracts import CATALOG, REJECTS, features_contract
+from covidxr.contracts import (
+    CATALOG,
+    EVAL,
+    PREDICTIONS,
+    REJECTS,
+    SPLITS,
+    features_contract,
+)
 from covidxr.features import feature_columns
 from covidxr.io import read_table
 from covidxr.layout import Layout
@@ -11,8 +20,9 @@ from covidxr.pipeline import run_pipeline
 
 
 @pytest.mark.slow
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
+    ci_cfg = pipeline_cfg(ci_cfg)  # without torch the CNN stage is disabled
     tables = []
     contract = features_contract(feature_columns(ci_cfg.features))
     for name in ("a", "b"):
@@ -24,6 +34,10 @@ def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
             layout.catalog_dir,
             layout.processed_dir,
             layout.features_dir,
+            layout.splits_dir,
+            layout.models_baseline,
+            layout.models_cnn,
+            layout.eval_dir,
         ):
             assert (stage_dir / "_run.json").is_file()
         assert layout.quality_json.is_file()
@@ -33,9 +47,20 @@ def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
                 read_table(layout.catalog_rejects, REJECTS),
                 read_table(layout.features_table, contract),
                 layout.quality_json.read_bytes(),
+                read_table(layout.splits_table, SPLITS),
+                read_table(layout.models_baseline / "predictions.parquet", PREDICTIONS),
+                read_table(layout.models_cnn / "predictions.parquet", PREDICTIONS),
+                read_table(layout.eval_table, EVAL),
+                layout.metrics_json.read_bytes(),
             )
         )
-    assert tables[0][0].equals(tables[1][0])
-    assert tables[0][1].equals(tables[1][1])
-    assert tables[0][2].equals(tables[1][2])
-    assert tables[0][3] == tables[1][3]
+        models = json.loads(layout.metrics_json.read_text(encoding="utf-8"))["models"]
+        assert set(models) == ({"baseline", "cnn"} if torch_available() else {"baseline"})
+        test_f1 = models["baseline"]["test"]["f1"]
+        print(f"synthetic baseline test F1: {test_f1}")
+        assert test_f1 >= 0.8
+    for first, second in zip(*tables, strict=True):
+        if isinstance(first, bytes):
+            assert first == second
+        else:
+            assert first.equals(second)

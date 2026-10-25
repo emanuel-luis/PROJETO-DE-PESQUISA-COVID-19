@@ -226,3 +226,87 @@ def test_new_ranges(tmp_path: Path, repo_root: Path, path: str, value: object) -
     node[leaf] = value
     with pytest.raises(ConfigError, match=path.replace(".", r"\.")):
         load_config(_write(tmp_path, data))
+
+
+def test_phase3_sections_round_trip(repo_root: Path) -> None:
+    cfg = load_config(repo_root / "params.yaml")
+    assert (cfg.split.test_size, cfg.split.val_size) == (0.2, 0.1)
+    tb = cfg.train_baseline
+    assert tb.candidates == ("logreg", "random_forest", "mlp")
+    assert tb.random_forest.max_depth is None and tb.random_forest.n_estimators == 300
+    assert tb.mlp.hidden_layer_sizes == (100,)
+    assert cfg.evaluate.threshold == 0.5
+    assert (cfg.train_cnn.arch, cfg.train_cnn.weights, cfg.train_cnn.input_size) == (
+        "resnet18",
+        "imagenet",
+        224,
+    )
+    ci = load_config(repo_root / "params.ci.yaml").train_cnn
+    assert (ci.weights, ci.input_size, ci.epochs, ci.device, ci.amp) == (
+        "none",
+        64,
+        1,
+        "cpu",
+        False,
+    )
+    assert load_config(repo_root / "params.ci.yaml").train_baseline.random_forest.n_estimators == 50
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value", "match"),
+    [
+        ("split", "test_size", 0.0, "split.test_size"),
+        ("split", "test_size", 0.5, "split.test_size"),
+        ("split", "val_size", 0.5, "split.val_size"),
+        ("split", "val_size", 0.0, "split.val_size"),
+        ("evaluate", "threshold", 0.0, "evaluate.threshold"),
+        ("evaluate", "threshold", 1.0, "evaluate.threshold"),
+        ("train_baseline", "candidates", [], "must not be empty"),
+        ("train_baseline", "candidates", ["mlp", "mlp"], "must not repeat"),
+        ("train_baseline", "candidates", ["svm"], "unknown candidate"),
+        ("train_cnn", "arch", "vgg", r"train_cnn.arch"),
+        ("train_cnn", "weights", "random", r"train_cnn.weights"),
+        ("train_cnn", "device", "tpu", r"train_cnn.device"),
+        ("train_cnn", "input_size", 16, r"train_cnn.input_size"),
+        ("train_cnn", "epochs", 0, r"train_cnn.epochs"),
+        ("train_cnn", "batch_size", 0, r"train_cnn.batch_size"),
+        ("train_cnn", "lr", 0.0, r"train_cnn.lr"),
+        ("train_cnn", "weight_decay", -1.0, r"train_cnn.weight_decay"),
+        ("train_cnn", "patience", 0, r"train_cnn.patience"),
+        ("train_cnn", "num_workers", -1, r"train_cnn.num_workers"),
+    ],
+)
+def test_phase3_ranges(
+    tmp_path: Path, repo_root: Path, section: str, key: str, value: object, match: str
+) -> None:
+    data = _base(repo_root)
+    section_data = data[section]
+    assert isinstance(section_data, dict)
+    section_data[key] = value
+    with pytest.raises(ConfigError, match=match):
+        load_config(_write(tmp_path, data))
+
+
+def test_split_sizes_must_leave_room_for_train(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["split"] = {"test_size": 0.4, "val_size": 0.4}
+    with pytest.raises(ConfigError, match="< 0.7"):
+        load_config(_write(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    ("test_size", "val_size", "match"),
+    [
+        (0.3, 0.1, r"split\.test_size: must be 1/k"),
+        (0.2, 0.15, r"split\.val_size: \(1 - test_size\) / val_size"),
+    ],
+)
+def test_split_sizes_must_give_whole_folds(
+    tmp_path: Path, repo_root: Path, test_size: float, val_size: float, match: str
+) -> None:
+    data = _base(repo_root)
+    data["split"] = {"test_size": test_size, "val_size": val_size}
+    with pytest.raises(ConfigError, match=match):
+        load_config(_write(tmp_path, data))
+    data["split"] = {"test_size": 0.25, "val_size": 0.25}
+    assert load_config(_write(tmp_path, data)).split.test_size == 0.25

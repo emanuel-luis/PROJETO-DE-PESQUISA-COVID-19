@@ -34,3 +34,35 @@ features:
     radius: 3
     method: default
     bins: 10
+split:
+  test_size: 0.2
+  val_size: 0.1
+train_baseline:
+  candidates: [logreg, random_forest, mlp]
+  logreg:
+    C: 1.0
+    max_iter: 1000
+  random_forest:
+    n_estimators: 300
+    max_depth: null
+    n_jobs: -1
+  mlp:
+    hidden_layer_sizes: [100]
+    alpha: 1.0e-4
+    learning_rate_init: 0.01
+    max_iter: 500
+train_cnn:
+  enabled: true
+  arch: resnet18
+  weights: imagenet
+  input_size: 224
+  epochs: 10
+  batch_size: 32
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  patience: 3
+  device: auto
+  num_workers: 0
+  amp: true
+evaluate:
+  threshold: 0.5

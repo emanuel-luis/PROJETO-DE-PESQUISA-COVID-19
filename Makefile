@@ -1,11 +1,14 @@
 .DEFAULT_GOAL := help
-.PHONY: help install lint test test-fast pipeline demo clean-demo
+.PHONY: help install install-cnn lint test test-fast pipeline demo clean-demo
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-13s %s\n", $$1, $$2}'
 
 install: ## Install locked dependencies
 	uv sync --locked
+
+install-cnn: ## Install locked dependencies plus the CNN extra (torch)
+	uv sync --locked --extra cnn
 
 lint: ## Ruff check, ruff format check and mypy
 	uv run ruff check .
@@ -18,11 +21,12 @@ test: ## Run tests, including slow ones
 test-fast: ## Run the default fast tests
 	uv run pytest
 
-pipeline: ## Reproduce the DVC pipeline
+pipeline: ## Reproduce the DVC pipeline and refresh the README results
 	uv run dvc repro
+	uv run covidxr report
 
-demo: ## Run the whole pipeline on synthetic images in .demo
-	uv run covidxr run-all --params params.ci.yaml --root .demo
+demo: install-cnn ## Run the whole pipeline on synthetic images in .demo
+	uv run --extra cnn covidxr run-all --params params.ci.yaml --root .demo
 
 clean-demo: ## Remove the demo output
 	rm -rf .demo

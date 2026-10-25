@@ -16,7 +16,11 @@ dependencies = [
     "kagglehub>=1.0.3,<2",
     "mahotas>=1.4.19",
     "scikit-image>=0.26.0",
+    "scikit-learn>=1.5",
 ]
+
+[project.optional-dependencies]
+cnn = ["torch>=2.5", "torchvision>=0.20"]
 
 [project.scripts]
 covidxr = "covidxr.cli:main"
@@ -62,9 +66,40 @@ timeout = 60
 testpaths = ["tests"]
 
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*", "mahotas", "mahotas.*"]
+module = ["pyarrow", "pyarrow.*", "mahotas", "mahotas.*", "sklearn", "sklearn.*", "joblib"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["covidxr.features"]
 disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "torchvision", "torchvision.*"]
+ignore_missing_imports = true
+
+[tool.uv]
+environments = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'linux'",
+    "sys_platform == 'darwin'",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

@@ -28,7 +28,13 @@
 
 Images are placed under `./images` and preprocessed (resized to `256×256`).
 
-## Results (top models)
+## Results (pipeline)
+
+<!-- covidxr:metrics:start -->
+Not generated yet: run `make pipeline`.
+<!-- covidxr:metrics:end -->
+
+## Results (2022 notebook)
 
 | Model | F1 | Accuracy | Specificity | Recall | Precision |
 | --- | --: | --: | --: | --: | --: |
@@ -47,13 +53,19 @@ Python · Jupyter · scikit-learn · XGBoost · LightGBM · image preprocessing.
 
 The 2022 scripts are being rebuilt as one DVC pipeline (`covidxr`); the plan is in
 [docs/REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md). The stages available so far are ingest,
-catalog, process and features.
+catalog, process, features, split, train_baseline, train_cnn and evaluate.
 
 ```bash
-make install   # uv sync --locked
-make demo      # the pipeline on synthetic images, written to .demo/
-make pipeline  # dvc repro on the real sources
+make install      # uv sync --locked
+make install-cnn  # the same plus torch and torchvision, needed by the train_cnn stage
+make demo         # the pipeline on synthetic images, written to .demo/
+make pipeline  # dvc repro on the real sources, then the README results block
 ```
+
+The CNN (transfer learning, ResNet-18 by default) is an optional extra: `uv sync --extra cnn`
+installs CPU wheels on Linux and CUDA 13.0 wheels on Windows. `train_cnn` saves a checkpoint
+after every epoch under `data/.cache/cnn/`, so an interrupted run (`dvc repro` or
+`covidxr train-cnn`) continues at the next epoch. Set `train_cnn.enabled: false` to skip it.
 
 The two Kaggle sources need a Kaggle API token: set `KAGGLE_API_TOKEN`, or save the token in
 `~/.kaggle/access_token`. The legacy `~/.kaggle/kaggle.json` (username and key) still works. The
@@ -77,8 +89,8 @@ Portuguese, as published):
    (pp. 122-139). SBC. <https://doi.org/10.5753/sbc.11014.1.6>
 
 Paper 1 describes the original method: radiomics texture features extracted from each X-ray and
-classified with an MLP. The pipeline's classical baseline (the `train_baseline` stage, still being
-built) re-implements it with the fixes recorded in [docs/DECISIONS.md](docs/DECISIONS.md), so its
+classified with an MLP. The pipeline's classical baseline (the `train_baseline` stage)
+re-implements it with the fixes recorded in [docs/DECISIONS.md](docs/DECISIONS.md), so its
 metrics can be compared with the 2022 results above. Paper 2 is a short-course chapter on building
 a web application for COVID-19 diagnosis.
 

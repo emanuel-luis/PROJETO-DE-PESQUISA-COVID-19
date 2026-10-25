@@ -3,6 +3,7 @@
 import dataclasses
 import hashlib
 import json
+import types
 import typing
 from dataclasses import dataclass
 from pathlib import Path
@@ -103,12 +104,80 @@ class FeaturesConfig:
 
 
 @dataclass(frozen=True)
+class SplitConfig:
+    test_size: float
+    val_size: float
+
+
+CANDIDATES = ("logreg", "random_forest", "mlp")
+
+
+@dataclass(frozen=True)
+class LogregConfig:
+    C: float
+    max_iter: int
+
+
+@dataclass(frozen=True)
+class RandomForestConfig:
+    n_estimators: int
+    max_depth: int | None
+    n_jobs: int
+
+
+@dataclass(frozen=True)
+class MlpConfig:
+    hidden_layer_sizes: tuple[int, ...]
+    alpha: float
+    learning_rate_init: float
+    max_iter: int
+
+
+@dataclass(frozen=True)
+class TrainBaselineConfig:
+    candidates: tuple[str, ...]
+    logreg: LogregConfig
+    random_forest: RandomForestConfig
+    mlp: MlpConfig
+
+
+ARCHS = ("resnet18", "efficientnet_b0")
+WEIGHTS = ("imagenet", "none")
+DEVICES = ("auto", "cpu", "cuda")
+
+
+@dataclass(frozen=True)
+class TrainCnnConfig:
+    enabled: bool
+    arch: str
+    weights: str
+    input_size: int
+    epochs: int
+    batch_size: int
+    lr: float
+    weight_decay: float
+    patience: int
+    device: str
+    num_workers: int
+    amp: bool
+
+
+@dataclass(frozen=True)
+class EvaluateConfig:
+    threshold: float
+
+
+@dataclass(frozen=True)
 class Config:
     seed: int
     ingest: IngestConfig
     catalog: CatalogConfig
     process: ProcessConfig
     features: FeaturesConfig
+    split: SplitConfig
+    train_baseline: TrainBaselineConfig
+    train_cnn: TrainCnnConfig
+    evaluate: EvaluateConfig
 
 
 def _coerce(value: object, hint: Any, where: str) -> Any:
@@ -125,6 +194,11 @@ def _coerce(value: object, hint: Any, where: str) -> Any:
             return float(typing.cast(float, value))
     elif hint is str:
         ok = isinstance(value, str)
+    elif typing.get_origin(hint) is types.UnionType and type(None) in typing.get_args(hint):
+        if value is None:
+            return None
+        inner = next(a for a in typing.get_args(hint) if a is not type(None))
+        return _coerce(value, inner, where)
     elif typing.get_origin(hint) is tuple:
         if isinstance(value, list):
             item = typing.get_args(hint)[0]
@@ -185,7 +259,17 @@ def load_config(path: Path) -> Config:
     except yaml.YAMLError as e:
         raise ConfigError(f"invalid YAML in {path}: {e}") from e
     data = _mapping(raw, "params")
-    sections = ("seed", "ingest", "catalog", "process", "features")
+    sections = (
+        "seed",
+        "ingest",
+        "catalog",
+        "process",
+        "features",
+        "split",
+        "train_baseline",
+        "train_cnn",
+        "evaluate",
+    )
     for key in data:
         if key not in sections:
             raise ConfigError(f"params.{key}: unknown key")
@@ -198,6 +282,10 @@ def load_config(path: Path) -> Config:
         catalog=_build(CatalogConfig, data["catalog"], "catalog"),
         process=_build(ProcessConfig, data["process"], "process"),
         features=_build(FeaturesConfig, data["features"], "features"),
+        split=_build(SplitConfig, data["split"], "split"),
+        train_baseline=_build(TrainBaselineConfig, data["train_baseline"], "train_baseline"),
+        train_cnn=_build(TrainCnnConfig, data["train_cnn"], "train_cnn"),
+        evaluate=_build(EvaluateConfig, data["evaluate"], "evaluate"),
     )
     _validate(cfg)
     return cfg
@@ -270,6 +358,76 @@ def _validate(cfg: Config) -> None:
             "features.lbp.bins",
             "must equal points + 2 when method is 'uniform'",
         )
+    sp = cfg.split
+    _check(0 < sp.test_size < 0.5, "split.test_size", "must be between 0 and 0.5 (exclusive)")
+    _check(0 < sp.val_size < 0.5, "split.val_size", "must be between 0 and 0.5 (exclusive)")
+    _check(sp.test_size + sp.val_size < 0.7, "split.val_size", "test_size + val_size must be < 0.7")
+    # the split uses round(1 / test_size) and round((1 - test_size) / val_size) folds, so only
+    # sizes that give a whole number of folds produce the shares written in params
+    k_test = 1 / sp.test_size
+    _check(
+        abs(k_test - round(k_test)) < 1e-6,
+        "split.test_size",
+        "must be 1/k for a whole k (e.g. 0.2 or 0.25) so the test share is exact",
+    )
+    k_val = (1 - sp.test_size) / sp.val_size
+    _check(
+        abs(k_val - round(k_val)) < 1e-6,
+        "split.val_size",
+        "(1 - test_size) / val_size must be a whole number so the val share is exact",
+    )
+    tb = cfg.train_baseline
+    _check(bool(tb.candidates), "train_baseline.candidates", "must not be empty")
+    _check(
+        len(set(tb.candidates)) == len(tb.candidates),
+        "train_baseline.candidates",
+        "must not repeat a candidate",
+    )
+    for name in tb.candidates:
+        _check(
+            name in CANDIDATES,
+            "train_baseline.candidates",
+            f"unknown candidate {name!r}, expected some of {list(CANDIDATES)}",
+        )
+    _check(tb.logreg.C > 0, "train_baseline.logreg.C", "must be > 0")
+    _check(tb.logreg.max_iter >= 1, "train_baseline.logreg.max_iter", "must be >= 1")
+    _check(
+        tb.random_forest.n_estimators >= 1,
+        "train_baseline.random_forest.n_estimators",
+        "must be >= 1",
+    )
+    _check(
+        tb.random_forest.max_depth is None or tb.random_forest.max_depth >= 1,
+        "train_baseline.random_forest.max_depth",
+        "must be null or >= 1",
+    )
+    _check(
+        tb.random_forest.n_jobs == -1 or tb.random_forest.n_jobs >= 1,
+        "train_baseline.random_forest.n_jobs",
+        "must be -1 or >= 1",
+    )
+    _check(
+        bool(tb.mlp.hidden_layer_sizes) and all(n >= 1 for n in tb.mlp.hidden_layer_sizes),
+        "train_baseline.mlp.hidden_layer_sizes",
+        "must be a non-empty list of sizes >= 1",
+    )
+    _check(tb.mlp.alpha >= 0, "train_baseline.mlp.alpha", "must be >= 0")
+    _check(tb.mlp.learning_rate_init > 0, "train_baseline.mlp.learning_rate_init", "must be > 0")
+    _check(tb.mlp.max_iter >= 1, "train_baseline.mlp.max_iter", "must be >= 1")
+    tc = cfg.train_cnn
+    _check(tc.arch in ARCHS, "train_cnn.arch", f"must be one of {list(ARCHS)}")
+    _check(tc.weights in WEIGHTS, "train_cnn.weights", f"must be one of {list(WEIGHTS)}")
+    _check(tc.device in DEVICES, "train_cnn.device", f"must be one of {list(DEVICES)}")
+    _check(32 <= tc.input_size <= 1024, "train_cnn.input_size", "must be between 32 and 1024")
+    _check(tc.epochs >= 1, "train_cnn.epochs", "must be >= 1")
+    _check(tc.batch_size >= 1, "train_cnn.batch_size", "must be >= 1")
+    _check(tc.lr > 0, "train_cnn.lr", "must be > 0")
+    _check(tc.weight_decay >= 0, "train_cnn.weight_decay", "must be >= 0")
+    _check(tc.patience >= 1, "train_cnn.patience", "must be >= 1")
+    _check(tc.num_workers >= 0, "train_cnn.num_workers", "must be >= 0")
+    _check(
+        0 < cfg.evaluate.threshold < 1, "evaluate.threshold", "must be between 0 and 1 (exclusive)"
+    )
 
 
 def _plain(obj: object) -> object:
