@@ -28,6 +28,7 @@ def test_params_yaml_round_trip(repo_root: Path) -> None:
     assert ieee.views == ("AP", "AP Supine")
     assert isinstance(cfg.ingest.sources["kaggle_covidqu"], KaggleConfig)
     assert cfg.catalog.near_dup_max_hamming == 4
+    assert cfg.catalog.near_dup_max_mad == 6.0
 
 
 def test_params_ci_round_trip(repo_root: Path) -> None:
@@ -65,16 +66,22 @@ def test_unknown_source_name(tmp_path: Path, repo_root: Path) -> None:
 
 def test_unknown_and_missing_and_ill_typed_keys(tmp_path: Path, repo_root: Path) -> None:
     data = _base(repo_root)
-    data["catalog"] = {"near_dup_max_hamming": 4, "extra": 1}
+    data["catalog"] = {"near_dup_max_hamming": 4, "near_dup_max_mad": 6, "extra": 1}
     with pytest.raises(ConfigError, match="catalog.extra"):
         load_config(_write(tmp_path, data))
     data["catalog"] = {}
     with pytest.raises(ConfigError, match="near_dup_max_hamming"):
         load_config(_write(tmp_path, data))
-    data["catalog"] = {"near_dup_max_hamming": "4"}
+    data["catalog"] = {"near_dup_max_hamming": 4}
+    with pytest.raises(ConfigError, match="near_dup_max_mad: missing"):
+        load_config(_write(tmp_path, data))
+    data["catalog"] = {"near_dup_max_hamming": 4, "near_dup_max_mad": "6"}
+    with pytest.raises(ConfigError, match="near_dup_max_mad: expected float"):
+        load_config(_write(tmp_path, data))
+    data["catalog"] = {"near_dup_max_hamming": "4", "near_dup_max_mad": 6}
     with pytest.raises(ConfigError, match="expected int"):
         load_config(_write(tmp_path, data))
-    data["catalog"] = {"near_dup_max_hamming": True}
+    data["catalog"] = {"near_dup_max_hamming": True, "near_dup_max_mad": 6}
     with pytest.raises(ConfigError, match="expected int"):
         load_config(_write(tmp_path, data))
 
@@ -102,9 +109,13 @@ def test_synthetic_ranges(
 
 def test_other_ranges(tmp_path: Path, repo_root: Path) -> None:
     data = _base(repo_root)
-    data["catalog"] = {"near_dup_max_hamming": 65}
+    data["catalog"] = {"near_dup_max_hamming": 65, "near_dup_max_mad": 6}
     with pytest.raises(ConfigError, match="near_dup_max_hamming"):
         load_config(_write(tmp_path, data))
+    for bad in (-0.5, 256, 1e9):
+        data["catalog"] = {"near_dup_max_hamming": 4, "near_dup_max_mad": bad}
+        with pytest.raises(ConfigError, match="near_dup_max_mad: must be between 0 and 255"):
+            load_config(_write(tmp_path, data))
     real = yaml.safe_load((repo_root / "params.yaml").read_text(encoding="utf-8"))
     real["ingest"]["sources"]["kaggle_covidqu"]["version"] = 0
     with pytest.raises(ConfigError, match="kaggle_covidqu.version"):

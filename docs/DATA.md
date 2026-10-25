@@ -106,16 +106,24 @@ Rows a stage cannot use are written to that stage's `rejects.parquet` (columns `
 | `extraction_error` | features | feature extraction raised |
 
 Exact duplicates with the same label are collapsed into one row (`sources` lists the copies).
+Near-duplicates (the same radiograph re-encoded or resized, often in two sources)
+are found in two steps: pairs whose dHash differs by at most `catalog.near_dup_max_hamming` bits
+are candidates, and a candidate becomes a link only when the mean absolute difference of the two
+32x32 grey thumbnails is at most `catalog.near_dup_max_mad` grey levels. The hash alone is not
+enough: on the real corpus it chained most images into one cluster (see `docs/DECISIONS.md`).
+Linked images share a `dup_cluster_id`; clusters and patient links are merged into `group_id`.
 Near-duplicates with conflicting labels are kept and counted in the quality report; they share a
-`group_id`, so they never straddle train and test.
+`group_id`, so they never straddle train and test. The split stage fails when one group is
+larger than the smallest split share, so a grouping regression cannot skew the split silently.
 
 ### Quality report
 
 `reports/quality.json` is deterministic: no timestamps or run ids. Fields: `n_catalog_rows`,
 `n_processed_rows`, `by_source_label` (counts per source and label), `class_balance`, `rejects`
 (counts per stage and reason), `width_percentiles`, `height_percentiles`,
-`n_exact_duplicate_rows_collapsed`, `n_dup_clusters`, `max_dup_cluster_size`,
-`n_dup_clusters_mixed_labels`, `n_groups`, `max_group_size`.
+`n_exact_duplicate_rows_collapsed`, `n_near_dup_candidates` (dHash pairs checked),
+`n_near_dup_edges` (pairs confirmed by the thumbnail check), `n_dup_clusters`,
+`max_dup_cluster_size`, `n_dup_clusters_mixed_labels`, `n_groups`, `max_group_size`.
 
 ### Run metadata
 

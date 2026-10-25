@@ -64,3 +64,9 @@ def test_run_split(ci_cfg: Config, pipeline_root: Path, tmp_path: Path) -> None:
     before = layout.splits_table.read_bytes()
     run_split(ci_cfg, tmp_path)
     assert layout.splits_table.read_bytes() == before
+
+
+def test_assign_splits_rejects_a_giant_group() -> None:
+    # 300 of 400 images in one group: the 10% val split could never be honoured
+    with pytest.raises(ConfigError, match=r"largest group has 300 of 400 images"):
+        assign_splits(_frame([300, 1, 1, 1], [1] * 97), 0.2, 0.1, 0)

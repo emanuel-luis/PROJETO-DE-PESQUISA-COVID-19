@@ -94,6 +94,8 @@ def test_quality_report_content_and_determinism(ci_cfg: Config, tmp_path: Path) 
         "width_percentiles",
         "height_percentiles",
         "n_exact_duplicate_rows_collapsed",
+        "n_near_dup_candidates",
+        "n_near_dup_edges",
         "n_dup_clusters",
         "max_dup_cluster_size",
         "n_dup_clusters_mixed_labels",

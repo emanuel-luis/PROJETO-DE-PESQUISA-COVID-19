@@ -36,6 +36,7 @@ def assign_splits(df: pd.DataFrame, test_size: float, val_size: float, seed: int
     round((1 - test_size) / val_size) folds is val; the rest is train.
     """
     df = df.sort_values("image_id", ignore_index=True)
+    _check_group_sizes(df, min(test_size, val_size))
     is_test = _fold0(df, round(1 / test_size), seed)
     rest = df[~is_test]
     is_val = _fold0(rest, round((1 - test_size) / val_size), seed)
@@ -44,6 +45,16 @@ def assign_splits(df: pd.DataFrame, test_size: float, val_size: float, seed: int
     out.loc[rest.index[is_val.to_numpy()], "split"] = "val"
     _check_postconditions(out)
     return out
+
+
+def _check_group_sizes(df: pd.DataFrame, smallest_share: float) -> None:
+    """A group lands in one split whole, so one bigger than the smallest split skews the shares."""
+    largest = int(df["group_id"].value_counts().max()) if len(df) else 0
+    if largest > smallest_share * len(df):
+        raise ConfigError(
+            f"split: the largest group has {largest} of {len(df)} images, more than the "
+            f"smallest split ({smallest_share:.0%}); the near-duplicate grouping chains images"
+        )
 
 
 def _check_postconditions(df: pd.DataFrame) -> None:

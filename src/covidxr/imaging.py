@@ -52,6 +52,17 @@ def dhash64(img: npt.NDArray[np.uint8]) -> int:
     return int.from_bytes(np.packbits(bits).tobytes(), "big")
 
 
+THUMB = 32
+
+
+def thumbnail(img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    """The whole image squeezed to THUMB x THUMB (INTER_AREA, aspect ignored): a content
+    fingerprint that survives re-encoding and rescaling and separates different radiographs."""
+    return cast(
+        npt.NDArray[np.uint8], cv2.resize(img, (THUMB, THUMB), interpolation=cv2.INTER_AREA)
+    )
+
+
 def _fit(img: npt.NDArray[np.uint8], size: int, interpolation: int) -> npt.NDArray[np.uint8]:
     """Scale so the longest side equals size, keeping the aspect (each side in [1, size])."""
     h, w = img.shape
