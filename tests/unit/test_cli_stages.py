@@ -54,3 +54,13 @@ def test_kaggle_without_credentials(
     assert "KAGGLE_API_TOKEN" in err and "Traceback" not in err
     assert len(err.strip().splitlines()) == 1
     assert not list((tmp_path / "root" / "data" / "raw").glob(".tmp-*"))
+
+
+@pytest.mark.parametrize("command", ["split", "train-baseline", "evaluate"])
+def test_later_stages_without_inputs_fail_cleanly(
+    command: str, ci_params: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(_argv(ci_params, tmp_path, command)) == 1
+    err = capsys.readouterr().err
+    assert "run `covidxr" in err and "Traceback" not in err
+    assert len(err.strip().splitlines()) == 1
