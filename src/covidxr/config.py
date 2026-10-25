@@ -338,6 +338,20 @@ def _validate(cfg: Config) -> None:
     _check(0 < sp.test_size < 0.5, "split.test_size", "must be between 0 and 0.5 (exclusive)")
     _check(0 < sp.val_size < 0.5, "split.val_size", "must be between 0 and 0.5 (exclusive)")
     _check(sp.test_size + sp.val_size < 0.7, "split.val_size", "test_size + val_size must be < 0.7")
+    # the split uses round(1 / test_size) and round((1 - test_size) / val_size) folds, so only
+    # sizes that give a whole number of folds produce the shares written in params
+    k_test = 1 / sp.test_size
+    _check(
+        abs(k_test - round(k_test)) < 1e-6,
+        "split.test_size",
+        "must be 1/k for a whole k (e.g. 0.2 or 0.25) so the test share is exact",
+    )
+    k_val = (1 - sp.test_size) / sp.val_size
+    _check(
+        abs(k_val - round(k_val)) < 1e-6,
+        "split.val_size",
+        "(1 - test_size) / val_size must be a whole number so the val share is exact",
+    )
     tb = cfg.train_baseline
     _check(bool(tb.candidates), "train_baseline.candidates", "must not be empty")
     _check(
