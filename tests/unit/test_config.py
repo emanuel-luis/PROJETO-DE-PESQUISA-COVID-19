@@ -189,6 +189,15 @@ def test_uniform_lbp_needs_points_plus_two_bins(tmp_path: Path, repo_root: Path)
         load_config(_write(tmp_path, data))
 
 
+def test_zernike_radius_follows_process_size(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["process"]["size"] = 128  # type: ignore[index]
+    with pytest.raises(ConfigError, match=r"features\.zernike\.radius: must equal process\.size"):
+        load_config(_write(tmp_path, data))
+    data["features"]["zernike"]["radius"] = 64  # type: ignore[index]
+    assert load_config(_write(tmp_path, data)).features.zernike.radius == 64
+
+
 @pytest.mark.parametrize(
     ("path", "value"),
     [

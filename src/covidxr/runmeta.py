@@ -21,14 +21,18 @@ class RunStats:
     extra: dict[str, object] = field(default_factory=dict)
 
 
-def _now() -> str:
+def utc_now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @contextmanager
-def stage_run(stage: str, out_dir: Path, params: object) -> Iterator[RunStats]:
+def stage_run(
+    stage: str, out_dir: Path, params: object, *, started_at: str | None = None
+) -> Iterator[RunStats]:
+    """Write out_dir/_run.json on success. Pass started_at (from utc_now()) when the stage
+    did its work before entering, so the duration in _run.json is real."""
     stats = RunStats()
-    started = _now()
+    started = started_at or utc_now()
     yield stats
     write_json(
         {
@@ -36,7 +40,7 @@ def stage_run(stage: str, out_dir: Path, params: object) -> Iterator[RunStats]:
             "run_id": uuid.uuid4().hex,
             "stage": stage,
             "started_at": started,
-            "finished_at": _now(),
+            "finished_at": utc_now(),
             "input_rows": stats.input_rows,
             "output_rows": stats.output_rows,
             "rejects": stats.rejects,

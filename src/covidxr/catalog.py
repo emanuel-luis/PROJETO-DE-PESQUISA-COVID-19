@@ -19,7 +19,7 @@ from covidxr.errors import ImageDecodeError, SourceUnavailableError
 from covidxr.imaging import decode_gray, dhash64
 from covidxr.io import replace_dir, write_table
 from covidxr.layout import Layout
-from covidxr.runmeta import stage_run
+from covidxr.runmeta import stage_run, utc_now
 from covidxr.sources import get_source
 from covidxr.sources.base import RawImage
 
@@ -210,6 +210,7 @@ def build_catalog(
 
 def run_catalog(cfg: Config, root: Path) -> None:
     """Build data/catalog from the raw dirs of every configured source."""
+    started = utc_now()
     layout = Layout(root)
     sources = list(cfg.ingest.sources)
     entries: list[CatalogEntry] = []
@@ -238,7 +239,7 @@ def run_catalog(cfg: Config, root: Path) -> None:
         raise
 
     params = (cfg.catalog, [(s, cfg.ingest.sources[s]) for s in sources])
-    with stage_run("catalog", dest, params=params) as st:
+    with stage_run("catalog", dest, params=params, started_at=started) as st:
         st.input_rows = len(entries)
         st.output_rows = len(catalog)
         st.rejects = len(rejects)

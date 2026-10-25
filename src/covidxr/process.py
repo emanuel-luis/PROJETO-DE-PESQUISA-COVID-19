@@ -1,5 +1,6 @@
 """Stage `process`: raw images -> fixed-size PNGs, plus the data quality report."""
 
+import dataclasses
 import json
 import logging
 import shutil
@@ -19,7 +20,7 @@ from covidxr.imaging import preprocess, read_gray, write_png
 from covidxr.io import read_table, replace_dir, write_json, write_table
 from covidxr.layout import Layout
 from covidxr.parallel import map_ordered
-from covidxr.runmeta import stage_run
+from covidxr.runmeta import stage_run, utc_now
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +92,7 @@ def quality_report(
 
 def run_process(cfg: Config, root: Path) -> None:
     """Read data/catalog, write data/processed and reports/quality.json."""
+    started = utc_now()
     layout = Layout(root)
     if not layout.catalog_table.is_file():
         raise SourceUnavailableError("no catalog: run `covidxr catalog` first")
@@ -139,7 +141,9 @@ def run_process(cfg: Config, root: Path) -> None:
         raise
 
     write_json(quality_report(catalog, catalog_rejects, rej, catalog_run), layout.quality_json)
-    with stage_run("process", dest, params=cfg.process) as st:
+    # the worker count never changes the output, so it stays out of params_hash
+    hashed = dataclasses.replace(cfg.process, workers=1)
+    with stage_run("process", dest, params=hashed, started_at=started) as st:
         st.input_rows = len(catalog)
         st.output_rows = len(processed)
         st.rejects = len(rej)
