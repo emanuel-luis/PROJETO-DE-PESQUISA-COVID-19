@@ -6,8 +6,10 @@ import sys
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from covidxr import __version__
+from covidxr.config import load_config
 from covidxr.errors import CovidxrError
 
 log = logging.getLogger(__name__)
@@ -24,9 +26,35 @@ def _version(_: argparse.Namespace) -> None:
     print(__version__)
 
 
-# Subcommand table; later steps register ingest, catalog, run-all, ...
+def _ingest(args: argparse.Namespace) -> None:
+    from covidxr.ingest import run_ingest
+
+    run_ingest(load_config(Path(args.params)), Path(args.root), args.source, force=args.force)
+
+
+def _ingest_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--source", required=True, help="source name from ingest.sources")
+    p.add_argument("--force", action="store_true", help="fetch again even if up to date")
+
+
+def _catalog(args: argparse.Namespace) -> None:
+    from covidxr.catalog import run_catalog
+
+    run_catalog(load_config(Path(args.params)), Path(args.root))
+
+
+def _run_all(args: argparse.Namespace) -> None:
+    from covidxr.pipeline import run_pipeline
+
+    run_pipeline(load_config(Path(args.params)), Path(args.root))
+
+
+# Subcommand table; later steps register process, features, train, evaluate.
 COMMANDS: dict[str, Command] = {
     "version": Command("print the package version", _version),
+    "ingest": Command("fetch one source into data/raw", _ingest, _ingest_args),
+    "catalog": Command("build data/catalog from the raw sources", _catalog),
+    "run-all": Command("run every stage in order", _run_all),
 }
 
 
