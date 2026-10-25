@@ -1,3 +1,5 @@
+import logging
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -15,6 +17,15 @@ def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     delays: list[float] = []
     monkeypatch.setattr(_common, "_sleep", delays.append)
     return delays
+
+
+@pytest.fixture(autouse=True)
+def _restore_covidxr_logging() -> Iterator[None]:
+    """cli.main binds a handler to the test's captured stderr; drop it when the test ends."""
+    logger = logging.getLogger("covidxr")
+    saved = (logger.handlers[:], logger.level, logger.propagate)
+    yield
+    logger.handlers, logger.level, logger.propagate = saved[0], saved[1], saved[2]
 
 
 @pytest.fixture
