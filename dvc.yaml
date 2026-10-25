@@ -23,3 +23,26 @@ stages:
       - catalog
     outs:
       - data/catalog
+  process:
+    cmd: covidxr process
+    deps:
+      - data/raw
+      - data/catalog
+      - src/covidxr/process.py
+      - src/covidxr/imaging.py
+    params:
+      - process
+    outs:
+      - data/processed
+    metrics:
+      - reports/quality.json:
+          cache: false
+  features:
+    cmd: covidxr features
+    deps:
+      - data/processed
+      - src/covidxr/features.py
+    params:
+      - features
+    outs:
+      - data/features
