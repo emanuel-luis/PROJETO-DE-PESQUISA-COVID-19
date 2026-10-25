@@ -16,7 +16,7 @@ import pandas as pd
 from covidxr.config import CatalogConfig, Config
 from covidxr.contracts import CATALOG, REJECTS, validate
 from covidxr.errors import ImageDecodeError, SourceUnavailableError
-from covidxr.imaging import decode_gray, dhash64
+from covidxr.imaging import THUMB, decode_gray, dhash64, thumbnail
 from covidxr.io import replace_dir, write_table
 from covidxr.layout import Layout
 from covidxr.runmeta import stage_run, utc_now
@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 
 _CHUNK = 128  # rows per XOR block: 128 x n x 8 bytes, ~40 MB at n = 40,000
 _UNIFORM_LOW, _UNIFORM_HIGH = 4, 60
+_VERIFY_CHUNK = 200_000  # candidate pairs per verification block
 
 
 class CatalogEntry(NamedTuple):
@@ -35,27 +36,49 @@ class CatalogEntry(NamedTuple):
     image: RawImage
 
 
-def near_duplicate_edges(hashes: npt.NDArray[np.uint64], max_hamming: int) -> list[tuple[int, int]]:
-    """Pairs (i, j), i < j, whose hashes differ by at most max_hamming bits; sorted.
+def near_duplicate_edges(hashes: npt.NDArray[np.uint64], max_hamming: int) -> npt.NDArray[np.int64]:
+    """Candidate pairs (i, j), i < j, whose hashes differ by at most max_hamming bits.
 
-    Near-uniform hashes (popcount <= 4 or >= 60) carry no signal and are skipped.
+    Shape (k, 2), sorted. Near-uniform hashes (popcount <= 4 or >= 60) carry no signal and are
+    skipped. A 64-bit dHash of a chest X-ray is far too coarse to say two images are the same,
+    so these are only candidates: verified_edges decides.
     """
     pop = np.bitwise_count(hashes)
     idx = np.flatnonzero((pop > _UNIFORM_LOW) & (pop < _UNIFORM_HIGH))
     h = hashes[idx]
-    edges: list[tuple[int, int]] = []
+    parts = [np.empty((0, 2), dtype=np.int64)]
     for s in range(0, len(h), _CHUNK):
         block = h[s : s + _CHUNK]
         dist = np.bitwise_count(block[:, None] ^ h[None, s:])
         rows, cols = np.nonzero(dist <= max_hamming)
-        for r, c in zip((rows + s).tolist(), (cols + s).tolist(), strict=True):
-            if r < c:
-                edges.append((int(idx[r]), int(idx[c])))
-    edges.sort()
-    return edges
+        keep = rows < cols  # the block starts at s on both axes
+        parts.append(np.stack([idx[rows[keep] + s], idx[cols[keep] + s]], axis=1))
+    return np.concatenate(parts)
 
 
-def connected_components(n: int, edges: Iterable[tuple[int, int]]) -> npt.NDArray[np.int64]:
+def verified_edges(
+    candidates: npt.NDArray[np.int64], thumbs: npt.NDArray[np.uint8], max_mad: float
+) -> npt.NDArray[np.int64]:
+    """The candidate pairs whose thumbnails differ by at most max_mad grey levels on average.
+
+    Single linkage chains any run of look-alikes into one group, so an edge must mean the same
+    radiograph. The mean absolute difference over an 8 x 8 grid of 4 x 4 block means is never larger
+    than that of the pixels, so this cheap pass cannot drop a pair the full check keeps.
+    """
+    n = len(thumbs)
+    flat = thumbs.reshape(n, THUMB * THUMB)
+    coarse = thumbs.reshape(n, THUMB // 4, 4, THUMB // 4, 4).mean(axis=(2, 4), dtype=np.float32)
+    coarse = coarse.reshape(n, (THUMB // 4) ** 2)
+    kept = [np.empty((0, 2), dtype=np.int64)]
+    for s in range(0, len(candidates), _VERIFY_CHUNK):
+        e = candidates[s : s + _VERIFY_CHUNK]
+        e = e[np.abs(coarse[e[:, 0]] - coarse[e[:, 1]]).mean(axis=1) <= max_mad + 1e-3]
+        mad = np.abs(flat[e[:, 0]].astype(np.int16) - flat[e[:, 1]]).mean(axis=1)
+        kept.append(e[mad <= max_mad])
+    return np.concatenate(kept)
+
+
+def connected_components(n: int, edges: Iterable[Sequence[int]]) -> npt.NDArray[np.int64]:
     """Union-find; each node is labelled with the smallest index of its component."""
     parent = list(range(n))
 
@@ -80,6 +103,7 @@ class _Item(NamedTuple):
     width: int
     height: int
     dhash: int
+    thumb: npt.NDArray[np.uint8]
 
 
 def _reject(
@@ -119,7 +143,7 @@ def build_catalog(
             rejects.append(_reject(e.source, rel, image_id, "undecodable", str(err)))
             continue
         h, w = img.shape
-        by_id[image_id].append(_Item(e, rel, image_id, w, h, dhash64(img)))
+        by_id[image_id].append(_Item(e, rel, image_id, w, h, dhash64(img), thumbnail(img)))
 
     kept: list[_Item] = []
     sources_of: dict[str, list[str]] = {}
@@ -154,7 +178,10 @@ def build_catalog(
 
     n = len(kept)
     hashes = np.array([it.dhash for it in kept], dtype=np.uint64)
-    near = near_duplicate_edges(hashes, cfg.near_dup_max_hamming)
+    thumbs = np.stack([it.thumb for it in kept]) if kept else np.empty((0, THUMB, THUMB), np.uint8)
+    candidates = near_duplicate_edges(hashes, cfg.near_dup_max_hamming)
+    near_arr = verified_edges(candidates, thumbs, cfg.near_dup_max_mad)
+    near = near_arr.tolist()
     dup_lab = connected_components(n, near)
     owner: dict[tuple[str, str], int] = {}
     patient_edges: list[tuple[int, int]] = []
@@ -199,6 +226,8 @@ def build_catalog(
         "n_rows": n,
         "n_rejects": {str(k): int(v) for k, v in by_reason.items()},
         "n_exact_duplicate_rows_collapsed": collapsed,
+        "n_near_dup_candidates": len(candidates),
+        "n_near_dup_edges": len(near_arr),
         "n_dup_clusters": int((dup_sizes > 1).sum()),
         "max_dup_cluster_size": int(dup_sizes.max()) if n else 0,
         "n_groups": int((grp_sizes > 0).sum()),
