@@ -67,6 +67,12 @@ def _train_baseline(args: argparse.Namespace) -> None:
     run_train_baseline(load_config(Path(args.params)), Path(args.root))
 
 
+def _train_cnn(args: argparse.Namespace) -> None:
+    from covidxr.training.cnn import run_train_cnn
+
+    run_train_cnn(load_config(Path(args.params)), Path(args.root))
+
+
 def _evaluate(args: argparse.Namespace) -> None:
     from covidxr.evaluate import run_evaluate
 
@@ -98,6 +104,7 @@ COMMANDS: dict[str, Command] = {
     "features": Command("extract handcrafted features into data/features", _features),
     "split": Command("assign train/val/test splits into data/splits", _split),
     "train-baseline": Command("train the classical baseline into models/baseline", _train_baseline),
+    "train-cnn": Command("train the CNN into models/cnn (resumes from checkpoints)", _train_cnn),
     "evaluate": Command("compute metrics into reports/metrics.json", _evaluate),
     "report": Command("render the README results block from the metrics", _report, _report_args),
     "run-all": Command("run every stage in order", _run_all),

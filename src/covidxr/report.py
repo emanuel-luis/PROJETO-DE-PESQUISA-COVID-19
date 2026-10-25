@@ -5,7 +5,7 @@ import logging
 from collections.abc import Mapping
 from pathlib import Path
 
-from covidxr.errors import ConfigError, SourceUnavailableError
+from covidxr.errors import ConfigError, ContractError, SourceUnavailableError
 from covidxr.io import atomic_path
 from covidxr.layout import Layout
 
@@ -28,18 +28,22 @@ def _fmt(value: object) -> str:
 
 
 def render_table(metrics: Mapping[str, object]) -> str:
-    """Markdown table of the test-split metrics, one row per model."""
+    """Markdown table of the test-split metrics, one row per model family.
+
+    Raises KeyError, TypeError or ValueError when metrics lacks a field.
+    """
     models = metrics["models"]
-    assert isinstance(models, dict)
-    head = ["Model", "Selected", *(name for name, _ in _COLUMNS), "Test images"]
+    if not isinstance(models, dict):
+        raise TypeError("models is not a mapping")
+    head = ["Family", "Model", *(name for name, _ in _COLUMNS), "Test images"]
     lines = [
         f"| {' | '.join(head)} |",
         "| --- | --- |" + " --: |" * (len(head) - 2),
     ]
-    for name, m in models.items():
+    for family, m in models.items():
         test = m["test"]
         cells = [
-            name,
+            family,
             str(m["selected"]),
             *(_fmt(test[key]) for _, key in _COLUMNS),
             str(test["n"]),
@@ -70,8 +74,15 @@ def run_report(root: Path, *, check: bool) -> int:
         old = layout.readme.read_bytes().decode("utf-8")
     except OSError as e:
         raise SourceUnavailableError(f"cannot read {layout.readme}: {e}") from e
-    metrics = json.loads(layout.metrics_json.read_text(encoding="utf-8"))
-    new = replace_block(old, render_table(metrics))
+    try:
+        metrics = json.loads(layout.metrics_json.read_text(encoding="utf-8"))
+        table = render_table(metrics)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise ContractError(
+            f"{layout.metrics_json} is malformed or incomplete ({type(e).__name__}: {e}): "
+            "run `make pipeline`"
+        ) from e
+    new = replace_block(old, table)
     if new == old:
         return 0
     if check:

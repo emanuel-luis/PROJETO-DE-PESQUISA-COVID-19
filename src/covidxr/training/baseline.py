@@ -116,6 +116,7 @@ def run_train_baseline(cfg: Config, root: Path) -> None:
         {
             "image_id": scored["image_id"],
             "split": scored["split"],
+            "family": "baseline",
             "model": name,
             "y_true": scored["label_int"].astype("int8"),
             "y_score": positive_scores(model, scored[columns].to_numpy(np.float64)),

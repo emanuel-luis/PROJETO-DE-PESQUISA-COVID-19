@@ -76,6 +76,7 @@ def test_run_train_baseline(ci_cfg: Config, pipeline_root: Path, tmp_path: Path)
     preds = read_table(out / "predictions.parquet", PREDICTIONS)
     splits = read_table(layout.splits_table, SPLITS).set_index("image_id")
     assert set(preds["split"]) == {"val", "test"} and preds["model"].eq(sel["chosen"]).all()
+    assert preds["family"].eq("baseline").all()
     assert preds["image_id"].is_monotonic_increasing
     assert preds["y_score"].between(0, 1).all()
     assert preds["split"].tolist() == splits.loc[preds["image_id"], "split"].tolist()

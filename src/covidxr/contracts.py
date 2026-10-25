@@ -99,12 +99,16 @@ PREDICTIONS = Contract(
         [
             _f("image_id", pa.string()),
             _f("split", pa.string()),
+            _f("family", pa.string()),
             _f("model", pa.string()),
             _f("y_true", pa.int8()),
             _f("y_score", pa.float64()),
         ]
     ),
-    allowed={"split": frozenset({"val", "test"})},
+    allowed={
+        "split": frozenset({"val", "test"}),
+        "family": frozenset({"baseline", "cnn"}),
+    },
 )
 
 
@@ -114,6 +118,7 @@ EVAL = Contract(
         [
             _f("image_id", pa.string()),
             _f("split", pa.string()),
+            _f("family", pa.string()),
             _f("model", pa.string()),
             _f("source", pa.string()),
             _f("y_true", pa.int8()),
@@ -121,7 +126,10 @@ EVAL = Contract(
             _f("y_pred", pa.int8()),
         ]
     ),
-    allowed={"split": frozenset({"val", "test"})},
+    allowed={
+        "split": frozenset({"val", "test"}),
+        "family": frozenset({"baseline", "cnn"}),
+    },
 )
 
 

@@ -10,7 +10,7 @@ from sklearn.metrics import roc_auc_score
 
 from covidxr.config import Config
 from covidxr.contracts import EVAL, PREDICTIONS, SPLITS
-from covidxr.errors import SourceUnavailableError
+from covidxr.errors import ContractError, SourceUnavailableError
 from covidxr.io import read_table, staged_dir, write_json, write_table
 from covidxr.layout import Layout
 from covidxr.runmeta import stage_run, utc_now
@@ -48,8 +48,8 @@ def binary_metrics(
 
 
 def _models(layout: Layout) -> dict[str, Path]:
-    """Model name -> directory holding its predictions.parquet. The CNN registers here later."""
-    return {"baseline": layout.models_baseline}
+    """Family -> directory holding its predictions.parquet."""
+    return {"baseline": layout.models_baseline, "cnn": layout.models_cnn}
 
 
 def run_evaluate(cfg: Config, root: Path) -> None:
@@ -62,11 +62,22 @@ def run_evaluate(cfg: Config, root: Path) -> None:
     thr = cfg.evaluate.threshold
     frames: list[pd.DataFrame] = []
     models: dict[str, object] = {}
-    for name, mdir in _models(layout).items():
+    for family, mdir in _models(layout).items():
         table = mdir / "predictions.parquet"
         if not table.is_file():
-            raise SourceUnavailableError(f"no predictions for {name}: run `covidxr train-{name}`")
+            raise SourceUnavailableError(
+                f"no predictions for {family}: run `covidxr train-{family}`"
+            )
         df = read_table(table, PREDICTIONS)
+        if df.empty:  # a skipped stage (e.g. train_cnn.enabled false) writes an empty table
+            log.info("evaluate: no predictions for %s, skipping it", family)
+            continue
+        unknown = ~df["image_id"].isin(source.index)
+        if unknown.any():
+            raise ContractError(
+                f"predictions for {family} reference {int(unknown.sum())} image_id(s) missing "
+                f"from data/splits, e.g. {df['image_id'][unknown].iloc[0]!r}: rerun `covidxr split`"
+            )
         df = df.assign(source=source.loc[df["image_id"]].to_numpy())
         df = df.assign(y_pred=(df["y_score"] >= thr).astype("int8"))
         frames.append(df)
@@ -75,14 +86,16 @@ def run_evaluate(cfg: Config, root: Path) -> None:
             return binary_metrics(part["y_true"], part["y_score"], thr)
 
         val, test = df[df["split"] == "val"], df[df["split"] == "test"]
-        models[name] = {
+        models[family] = {
             "selected": str(df["model"].iloc[0]),
             "val": metrics(val),
             "test": metrics(test),
             "test_by_source": {str(src): metrics(g) for src, g in test.groupby("source")},
         }
+    if not frames:
+        raise SourceUnavailableError("every predictions table is empty: nothing to evaluate")
     out = pd.concat(frames, ignore_index=True).sort_values(
-        ["model", "split", "image_id"], ignore_index=True
+        ["family", "model", "split", "image_id"], ignore_index=True
     )
     with staged_dir(layout.eval_dir) as tmp:
         write_table(out, tmp / layout.eval_table.name, EVAL)

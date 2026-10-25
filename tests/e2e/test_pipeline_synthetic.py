@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from helpers import pipeline_cfg, torch_available
 
 from covidxr.config import Config
 from covidxr.contracts import (
@@ -21,6 +22,7 @@ from covidxr.pipeline import run_pipeline
 @pytest.mark.slow
 @pytest.mark.timeout(300)
 def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
+    ci_cfg = pipeline_cfg(ci_cfg)  # without torch the CNN stage is disabled
     tables = []
     contract = features_contract(feature_columns(ci_cfg.features))
     for name in ("a", "b"):
@@ -34,6 +36,7 @@ def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
             layout.features_dir,
             layout.splits_dir,
             layout.models_baseline,
+            layout.models_cnn,
             layout.eval_dir,
         ):
             assert (stage_dir / "_run.json").is_file()
@@ -46,13 +49,14 @@ def test_pipeline_is_reproducible(ci_cfg: Config, tmp_path: Path) -> None:
                 layout.quality_json.read_bytes(),
                 read_table(layout.splits_table, SPLITS),
                 read_table(layout.models_baseline / "predictions.parquet", PREDICTIONS),
+                read_table(layout.models_cnn / "predictions.parquet", PREDICTIONS),
                 read_table(layout.eval_table, EVAL),
                 layout.metrics_json.read_bytes(),
             )
         )
-        test_f1 = json.loads(layout.metrics_json.read_text(encoding="utf-8"))["models"]["baseline"][
-            "test"
-        ]["f1"]
+        models = json.loads(layout.metrics_json.read_text(encoding="utf-8"))["models"]
+        assert set(models) == ({"baseline", "cnn"} if torch_available() else {"baseline"})
+        test_f1 = models["baseline"]["test"]["f1"]
         print(f"synthetic baseline test F1: {test_f1}")
         assert test_f1 >= 0.8
     for first, second in zip(*tables, strict=True):
