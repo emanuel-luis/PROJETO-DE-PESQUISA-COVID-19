@@ -178,6 +178,17 @@ def test_bool_rejects_int_and_missing_section(tmp_path: Path, repo_root: Path) -
         load_config(_write(tmp_path, data))
 
 
+def test_uniform_lbp_needs_points_plus_two_bins(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    lbp = data["features"]["lbp"]  # type: ignore[index]
+    lbp["method"] = "uniform"
+    lbp["bins"] = lbp["points"] + 2
+    assert load_config(_write(tmp_path, data)).features.lbp.bins == 10
+    lbp["bins"] = 9
+    with pytest.raises(ConfigError, match=r"features\.lbp\.bins: must equal points \+ 2"):
+        load_config(_write(tmp_path, data))
+
+
 @pytest.mark.parametrize(
     ("path", "value"),
     [
