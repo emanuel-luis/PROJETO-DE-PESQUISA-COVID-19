@@ -159,11 +159,20 @@ def _resolve_device(name: str) -> torch.device:
     return device
 
 
-def checkpoint_key(cfg: Config, layout: Layout) -> str:
-    """Same params and same input tables <=> same key. num_workers never changes the result."""
+def checkpoint_key(cfg: Config, layout: Layout, device: str) -> str:
+    """Same params, device type and inputs <=> same key. num_workers never changes the result.
+
+    processed.parquet only lists paths, so the pixels are covered by the hash of
+    data/processed/_run.json, which changes on every process run (conservative on purpose).
+    """
     cnn = dataclasses.replace(cfg.train_cnn, num_workers=0)
     return params_hash(
-        cfg.seed, cnn, sha256_file(layout.splits_table), sha256_file(layout.processed_table)
+        cfg.seed,
+        cnn,
+        device,
+        sha256_file(layout.splits_table),
+        sha256_file(layout.processed_table),
+        sha256_file(layout.processed_dir / "_run.json"),
     )
 
 
@@ -306,15 +315,20 @@ def run_train_cnn(cfg: Config, root: Path) -> None:
     scored_loader = loader(dataset(scored, train=False), shuffle=False)
     y_val = val_rows["label_int"].to_numpy(np.int8)
 
-    model = build_model(tc.arch, tc.weights).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=tc.lr, weight_decay=tc.weight_decay)
-    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
-    best_f1, best_state, bad_epochs = -1.0, _state_copy(model), 0
+    def init() -> tuple[Any, Any, Any]:
+        net = build_model(tc.arch, tc.weights).to(device)
+        opt = torch.optim.AdamW(net.parameters(), lr=tc.lr, weight_decay=tc.weight_decay)
+        return net, opt, torch.amp.GradScaler("cuda", enabled=use_amp)
+
+    model, optimizer, scaler = init()
+    best_f1, best_state, best_epoch, bad_epochs = -1.0, _state_copy(model), 0, 0
     history: list[dict[str, float | int]] = []
     done = 0
     resumed_from: int | None = None
 
-    key = checkpoint_key(cfg, layout)
+    if not (layout.processed_dir / "_run.json").is_file():
+        raise SourceUnavailableError("no processed images: run `covidxr process` first")
+    key = checkpoint_key(cfg, layout, device.type)
     ckpt_dir = layout.cnn_cache / key
     last = ckpt_dir / "last.pt"
     if layout.cnn_cache.is_dir():
@@ -323,15 +337,24 @@ def run_train_cnn(cfg: Config, root: Path) -> None:
                 log.info("train_cnn: dropping checkpoints of another run (%s)", stale.name)
                 shutil.rmtree(stale, ignore_errors=True)
     if last.is_file():
-        ck = _load_checkpoint(last)
-        model.load_state_dict(ck["model"])
-        optimizer.load_state_dict(ck["optimizer"])
-        scaler.load_state_dict(ck["scaler"])
-        done, best_f1, best_state = ck["epoch"], ck["best_f1"], ck["best_state"]
-        bad_epochs, history = ck["bad_epochs"], ck["history"]
-        _restore_rng(ck["rng"], gen)
-        resumed_from = done
-        log.info("train_cnn: resuming after epoch %d of %d", done, tc.epochs)
+        try:
+            ck = _load_checkpoint(last)
+            model.load_state_dict(ck["model"])
+            optimizer.load_state_dict(ck["optimizer"])
+            scaler.load_state_dict(ck["scaler"])
+            done, best_f1, best_state = ck["epoch"], ck["best_f1"], ck["best_state"]
+            best_epoch, bad_epochs, history = ck["best_epoch"], ck["bad_epochs"], ck["history"]
+            _restore_rng(ck["rng"], gen)
+            resumed_from = done
+            log.info("train_cnn: resuming after epoch %d of %d", done, tc.epochs)
+        except Exception as e:  # noqa: BLE001 - any unreadable or incompatible checkpoint
+            log.warning("train_cnn: dropping an unusable checkpoint (%s: %s)", type(e).__name__, e)
+            shutil.rmtree(ckpt_dir, ignore_errors=True)
+            _seed_everything(cfg.seed)
+            gen.manual_seed(cfg.seed)
+            model, optimizer, scaler = init()
+            best_f1, best_state, best_epoch, bad_epochs = -1.0, _state_copy(model), 0, 0
+            history, done, resumed_from = [], 0, None
 
     while done < tc.epochs and bad_epochs < tc.patience:
         t0 = time.monotonic()
@@ -352,7 +375,7 @@ def run_train_cnn(cfg: Config, root: Path) -> None:
         val_f1 = float(f1_score(y_val, val_scores >= THRESHOLD, zero_division=0))
         done += 1
         if val_f1 > best_f1:
-            best_f1, best_state, bad_epochs = val_f1, _state_copy(model), 0
+            best_f1, best_state, best_epoch, bad_epochs = val_f1, _state_copy(model), done, 0
         else:
             bad_epochs += 1
         history.append(
@@ -373,6 +396,7 @@ def run_train_cnn(cfg: Config, root: Path) -> None:
                 "scaler": scaler.state_dict(),
                 "epoch": done,
                 "best_f1": best_f1,
+                "best_epoch": best_epoch,
                 "best_state": best_state,
                 "bad_epochs": bad_epochs,
                 "history": history,
@@ -392,7 +416,6 @@ def run_train_cnn(cfg: Config, root: Path) -> None:
             "y_score": scores,
         }
     ).sort_values("image_id", ignore_index=True)
-    best_epoch = max(history, key=lambda h: (h["val_f1"], -h["epoch"]))["epoch"] if history else 0
 
     with staged_dir(layout.models_cnn) as tmp:
         torch.save(best_state, tmp / "model.pt")

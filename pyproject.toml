@@ -77,11 +77,6 @@ disallow_untyped_calls = false
 module = ["torch", "torch.*", "torchvision", "torchvision.*"]
 ignore_missing_imports = true
 
-# torch classes are Any bases when torch is not installed and typed when it is
-[[tool.mypy.overrides]]
-module = ["covidxr.training.cnn"]
-disallow_subclassing_any = false
-
 [tool.uv]
 environments = [
     "sys_platform == 'win32'",
