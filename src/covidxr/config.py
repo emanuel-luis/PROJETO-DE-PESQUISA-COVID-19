@@ -141,6 +141,27 @@ class TrainBaselineConfig:
     mlp: MlpConfig
 
 
+ARCHS = ("resnet18", "efficientnet_b0")
+WEIGHTS = ("imagenet", "none")
+DEVICES = ("auto", "cpu", "cuda")
+
+
+@dataclass(frozen=True)
+class TrainCnnConfig:
+    enabled: bool
+    arch: str
+    weights: str
+    input_size: int
+    epochs: int
+    batch_size: int
+    lr: float
+    weight_decay: float
+    patience: int
+    device: str
+    num_workers: int
+    amp: bool
+
+
 @dataclass(frozen=True)
 class EvaluateConfig:
     threshold: float
@@ -155,6 +176,7 @@ class Config:
     features: FeaturesConfig
     split: SplitConfig
     train_baseline: TrainBaselineConfig
+    train_cnn: TrainCnnConfig
     evaluate: EvaluateConfig
 
 
@@ -245,6 +267,7 @@ def load_config(path: Path) -> Config:
         "features",
         "split",
         "train_baseline",
+        "train_cnn",
         "evaluate",
     )
     for key in data:
@@ -261,6 +284,7 @@ def load_config(path: Path) -> Config:
         features=_build(FeaturesConfig, data["features"], "features"),
         split=_build(SplitConfig, data["split"], "split"),
         train_baseline=_build(TrainBaselineConfig, data["train_baseline"], "train_baseline"),
+        train_cnn=_build(TrainCnnConfig, data["train_cnn"], "train_cnn"),
         evaluate=_build(EvaluateConfig, data["evaluate"], "evaluate"),
     )
     _validate(cfg)
@@ -390,6 +414,17 @@ def _validate(cfg: Config) -> None:
     _check(tb.mlp.alpha >= 0, "train_baseline.mlp.alpha", "must be >= 0")
     _check(tb.mlp.learning_rate_init > 0, "train_baseline.mlp.learning_rate_init", "must be > 0")
     _check(tb.mlp.max_iter >= 1, "train_baseline.mlp.max_iter", "must be >= 1")
+    tc = cfg.train_cnn
+    _check(tc.arch in ARCHS, "train_cnn.arch", f"must be one of {list(ARCHS)}")
+    _check(tc.weights in WEIGHTS, "train_cnn.weights", f"must be one of {list(WEIGHTS)}")
+    _check(tc.device in DEVICES, "train_cnn.device", f"must be one of {list(DEVICES)}")
+    _check(32 <= tc.input_size <= 1024, "train_cnn.input_size", "must be between 32 and 1024")
+    _check(tc.epochs >= 1, "train_cnn.epochs", "must be >= 1")
+    _check(tc.batch_size >= 1, "train_cnn.batch_size", "must be >= 1")
+    _check(tc.lr > 0, "train_cnn.lr", "must be > 0")
+    _check(tc.weight_decay >= 0, "train_cnn.weight_decay", "must be >= 0")
+    _check(tc.patience >= 1, "train_cnn.patience", "must be >= 1")
+    _check(tc.num_workers >= 0, "train_cnn.num_workers", "must be >= 0")
     _check(
         0 < cfg.evaluate.threshold < 1, "evaluate.threshold", "must be between 0 and 1 (exclusive)"
     )

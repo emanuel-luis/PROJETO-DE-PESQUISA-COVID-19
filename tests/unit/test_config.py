@@ -236,6 +236,19 @@ def test_phase3_sections_round_trip(repo_root: Path) -> None:
     assert tb.random_forest.max_depth is None and tb.random_forest.n_estimators == 300
     assert tb.mlp.hidden_layer_sizes == (100,)
     assert cfg.evaluate.threshold == 0.5
+    assert (cfg.train_cnn.arch, cfg.train_cnn.weights, cfg.train_cnn.input_size) == (
+        "resnet18",
+        "imagenet",
+        224,
+    )
+    ci = load_config(repo_root / "params.ci.yaml").train_cnn
+    assert (ci.weights, ci.input_size, ci.epochs, ci.device, ci.amp) == (
+        "none",
+        64,
+        1,
+        "cpu",
+        False,
+    )
     assert load_config(repo_root / "params.ci.yaml").train_baseline.random_forest.n_estimators == 50
 
 
@@ -251,6 +264,16 @@ def test_phase3_sections_round_trip(repo_root: Path) -> None:
         ("train_baseline", "candidates", [], "must not be empty"),
         ("train_baseline", "candidates", ["mlp", "mlp"], "must not repeat"),
         ("train_baseline", "candidates", ["svm"], "unknown candidate"),
+        ("train_cnn", "arch", "vgg", r"train_cnn.arch"),
+        ("train_cnn", "weights", "random", r"train_cnn.weights"),
+        ("train_cnn", "device", "tpu", r"train_cnn.device"),
+        ("train_cnn", "input_size", 16, r"train_cnn.input_size"),
+        ("train_cnn", "epochs", 0, r"train_cnn.epochs"),
+        ("train_cnn", "batch_size", 0, r"train_cnn.batch_size"),
+        ("train_cnn", "lr", 0.0, r"train_cnn.lr"),
+        ("train_cnn", "weight_decay", -1.0, r"train_cnn.weight_decay"),
+        ("train_cnn", "patience", 0, r"train_cnn.patience"),
+        ("train_cnn", "num_workers", -1, r"train_cnn.num_workers"),
     ],
 )
 def test_phase3_ranges(
