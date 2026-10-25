@@ -46,6 +46,13 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
   `covid19-xray-pipeline`; two large feature CSV files were removed from history.
 - Build requirement moved to `uv_build>=0.13,<0.14`.
 
+### Fixed
+
+- Near-duplicate grouping: dHash pairs are now confirmed with a thumbnail check
+  (`catalog.near_dup_max_mad`) before they link two images. On the real corpus the hash alone
+  chained 31,779 of 41,077 images into one group; with the check the largest group has 28.
+- `split` fails when one group is larger than the smallest split share.
+
 ### Removed
 
 - pyradiomics (no wheels for Python 3.10 and later); first-order statistics are reimplemented
