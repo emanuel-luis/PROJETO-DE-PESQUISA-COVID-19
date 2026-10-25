@@ -226,3 +226,46 @@ def test_new_ranges(tmp_path: Path, repo_root: Path, path: str, value: object) -
     node[leaf] = value
     with pytest.raises(ConfigError, match=path.replace(".", r"\.")):
         load_config(_write(tmp_path, data))
+
+
+def test_phase3_sections_round_trip(repo_root: Path) -> None:
+    cfg = load_config(repo_root / "params.yaml")
+    assert (cfg.split.test_size, cfg.split.val_size) == (0.2, 0.1)
+    tb = cfg.train_baseline
+    assert tb.candidates == ("logreg", "random_forest", "mlp")
+    assert tb.random_forest.max_depth is None and tb.random_forest.n_estimators == 300
+    assert tb.mlp.hidden_layer_sizes == (100,)
+    assert cfg.evaluate.threshold == 0.5
+    assert load_config(repo_root / "params.ci.yaml").train_baseline.random_forest.n_estimators == 50
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value", "match"),
+    [
+        ("split", "test_size", 0.0, "split.test_size"),
+        ("split", "test_size", 0.5, "split.test_size"),
+        ("split", "val_size", 0.5, "split.val_size"),
+        ("split", "val_size", 0.0, "split.val_size"),
+        ("evaluate", "threshold", 0.0, "evaluate.threshold"),
+        ("evaluate", "threshold", 1.0, "evaluate.threshold"),
+        ("train_baseline", "candidates", [], "must not be empty"),
+        ("train_baseline", "candidates", ["mlp", "mlp"], "must not repeat"),
+        ("train_baseline", "candidates", ["svm"], "unknown candidate"),
+    ],
+)
+def test_phase3_ranges(
+    tmp_path: Path, repo_root: Path, section: str, key: str, value: object, match: str
+) -> None:
+    data = _base(repo_root)
+    section_data = data[section]
+    assert isinstance(section_data, dict)
+    section_data[key] = value
+    with pytest.raises(ConfigError, match=match):
+        load_config(_write(tmp_path, data))
+
+
+def test_split_sizes_must_leave_room_for_train(tmp_path: Path, repo_root: Path) -> None:
+    data = _base(repo_root)
+    data["split"] = {"test_size": 0.4, "val_size": 0.4}
+    with pytest.raises(ConfigError, match="< 0.7"):
+        load_config(_write(tmp_path, data))
