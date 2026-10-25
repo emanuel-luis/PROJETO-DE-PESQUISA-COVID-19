@@ -1,0 +1,65 @@
+[project]
+name = "covidxr"
+version = "0.1.0"
+description = "Reproducible DVC pipeline for chest X-ray COVID-19 classification."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "Emanuel Luis", email = "emanuel.filho08@gmail.com" }]
+dependencies = [
+    "numpy>=2",
+    "pandas>=2.2",
+    "pyarrow",
+    "opencv-python-headless",
+    "pyyaml",
+    "kagglehub>=0.4.3",
+]
+
+[project.scripts]
+covidxr = "covidxr.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-timeout",
+    "hypothesis",
+    "ruff",
+    "mypy",
+    "pandas-stubs",
+    "types-PyYAML",
+    "dvc",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.10"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["feature_extractor", "notebooks"]
+
+[tool.ruff.lint]
+extend-select = ["BLE"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+files = ["src"]
+exclude = ["feature_extractor"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config -m 'not slow and not external and not gpu'"
+markers = [
+    "slow: end-to-end tests that run the whole pipeline",
+    "external: tests that need network access or credentials",
+    "gpu: tests that need a CUDA device",
+]
+timeout = 60
+testpaths = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
