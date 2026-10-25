@@ -6,24 +6,8 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
-### Added
-
-- Windows test job in CI (without the cnn extra), a `security.yml` workflow running pip-audit on
-  the locked base and dev dependencies, and weekly grouped Dependabot updates for GitHub Actions
-  and uv.
-- `docs/DATA.md` (sources, licenses, layers, contracts, rejects, run metadata) and a repo
-  `CLAUDE.md`.
-
-### Changed
-
-- README rewritten around the pipeline; the 2022 results table is kept with a note that it is
-  not comparable.
-- Build requirement moved to `uv_build>=0.13,<0.14`.
-
-## [0.1.0] - 2026-10-25
-
 First version of the DVC pipeline that replaces the 2022 notebook scripts (kept in
-`notebooks/legacy/`).
+`notebooks/legacy/`). No release is tagged yet.
 
 ### Added
 
@@ -35,7 +19,8 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
 - `catalog`: content-hash image ids, exact-duplicate collapse, near-duplicate clusters from a
   perceptual hash, patient-aware group ids, and rejects with reasons.
 - `process`: resize and pad to a square, optional CLAHE, and `reports/quality.json`.
-- `features`: 119 handcrafted features (first-order statistics, Haralick, Zernike, LBP).
+- `features`: 119 handcrafted features (first-order statistics, Haralick, threshold adjacency
+  statistics, Zernike moments, LBP).
 - `split`: stratified, group-aware train, val and test splits.
 - `train_baseline`: scikit-learn candidates with the scaler inside the pipeline, selected on
   validation F1.
@@ -45,14 +30,21 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
   `reports/metrics.json`, and a README results block with `covidxr report --check`.
 - Typed table contracts (pyarrow schemas), `_run.json` run metadata on every stage, and the
   `covidxr` CLI with `run-all`.
+- Windows test job in CI (without the cnn extra), a `security.yml` workflow running pip-audit on
+  the locked base and dev dependencies, and weekly grouped Dependabot updates for GitHub Actions
+  and uv.
+- `docs/DATA.md` (sources, licenses, layers, contracts, rejects, run metadata) and a repo
+  `CLAUDE.md`.
 - Publications section, `CITATION.cff` and `docs/publications.bib` for the two ERCEMAPI 2022
   papers.
 
 ### Changed
 
-- The 2022 research text moved to `README.pt-BR.md`.
+- README rewritten around the pipeline; the 2022 results table is kept with a note that it is
+  not comparable. The 2022 research text moved to `README.pt-BR.md`.
 - The `master` branch was renamed `main` and the repository renamed to
   `covid19-xray-pipeline`; two large feature CSV files were removed from history.
+- Build requirement moved to `uv_build>=0.13,<0.14`.
 
 ### Removed
 

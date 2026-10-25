@@ -24,7 +24,8 @@ text, in Portuguese, is in [README.pt-BR.md](README.pt-BR.md).
 - Run metadata: each stage records run id, timings, row counts, rejects and a hash of its
   parameters; source downloads record sha256 per file, version and license in a manifest.
 - Reproducibility: pinned source versions, a locked environment (`uv.lock`), seeded and
-  deterministic stages, and `dvc repro` as the single entry point.
+  deterministic stages, and one entry point: `make pipeline` runs `dvc repro`, then
+  `covidxr report`.
 - Leakage-safe evaluation: exact and near-duplicate images are clustered, linked to patients and
   kept in one group; splits are stratified and group-aware; scalers are fitted on train only;
   metrics are reported per model family, split and source.
@@ -90,7 +91,7 @@ on Linux and CUDA 13.0 wheels on Windows, which download about 3 GB. Without the
 | train_baseline | features, splits | `models/baseline` | scaler inside the sklearn pipeline, fitted on train; candidate chosen on validation F1 |
 | train_cnn | processed images, splits | `models/cnn` | ResNet-18 transfer learning; per-epoch checkpoints; can be disabled |
 | evaluate | splits, both model families | `data/eval`, `reports/metrics.json` | metrics per family, split and source; fixed 0.5 threshold |
-| report | `reports/metrics.json` | README results block | `covidxr report --check` fails on a stale block |
+| report (runs after `dvc repro`, not a DVC stage) | `reports/metrics.json` | README results block | `covidxr report --check` fails on a stale block |
 
 ## Project structure
 
