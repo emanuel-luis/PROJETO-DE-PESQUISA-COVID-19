@@ -18,7 +18,7 @@ with one command. CI runs the same DAG on tiny synthetic images.
   non-null columns, key uniqueness, allowed values). No pandera.
 - **CI profile:** CI copies `params.ci.yaml` over `params.yaml` before `dvc repro`
   (`dvc exp run -S` cannot remove the Kaggle sources from the `foreach`). Locally,
-  `make demo` runs `covidxr run-all --params params.ci.yaml --root .demo` without DVC.
+  `make demo` runs `covidxr --params params.ci.yaml --root .demo run-all` without DVC.
 - **Stage outputs are directories** (`data/catalog/`, ...), each with `_run.json` written last.
 - **Evaluate does not import torch:** both training stages write a predictions Parquet.
 - **pyradiomics dropped** (no wheels for Python 3.10+): first-order stats in numpy, GLCM via
