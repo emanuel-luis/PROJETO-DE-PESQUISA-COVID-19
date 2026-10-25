@@ -1,5 +1,6 @@
 """Stage `features`: handcrafted texture features of the processed images."""
 
+import dataclasses
 import logging
 import math
 import shutil
@@ -20,7 +21,7 @@ from covidxr.imaging import read_gray
 from covidxr.io import read_table, replace_dir, write_table
 from covidxr.layout import Layout
 from covidxr.parallel import map_ordered
-from covidxr.runmeta import stage_run
+from covidxr.runmeta import stage_run, utc_now
 
 log = logging.getLogger(__name__)
 
@@ -130,6 +131,7 @@ def _extract_one(job: _Job) -> _Result:
 
 def run_features(cfg: Config, root: Path) -> None:
     """Read data/processed, write data/features."""
+    started = utc_now()
     layout = Layout(root)
     if not layout.processed_table.is_file():
         raise SourceUnavailableError("no processed images: run `covidxr process` first")
@@ -178,7 +180,9 @@ def run_features(cfg: Config, root: Path) -> None:
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)
         raise
-    with stage_run("features", dest, params=fcfg) as st:
+    # the worker count never changes the output, so it stays out of params_hash
+    hashed = dataclasses.replace(fcfg, workers=1)
+    with stage_run("features", dest, params=hashed, started_at=started) as st:
         st.input_rows = len(processed)
         st.output_rows = len(feats)
         st.rejects = len(rej)

@@ -42,6 +42,14 @@ def test_run_json_fields(tmp_path: Path) -> None:
     assert meta["package_version"] == covidxr.__version__
 
 
+def test_started_at_is_kept(tmp_path: Path) -> None:
+    with stage_run("process", tmp_path, {}, started_at="2026-01-02T03:04:05Z"):
+        pass
+    meta = json.loads((tmp_path / "_run.json").read_text(encoding="utf-8"))
+    assert meta["started_at"] == "2026-01-02T03:04:05Z"
+    assert meta["finished_at"] > meta["started_at"]
+
+
 def test_nothing_written_on_exception(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError), stage_run("catalog", tmp_path, {}):
         raise RuntimeError("boom")

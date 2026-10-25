@@ -9,7 +9,7 @@ from covidxr.config import Config
 from covidxr.errors import ConfigError
 from covidxr.io import replace_dir
 from covidxr.layout import Layout
-from covidxr.runmeta import stage_run
+from covidxr.runmeta import stage_run, utc_now
 from covidxr.sources import get_source
 from covidxr.sources.base import Manifest
 
@@ -27,8 +27,11 @@ def _current_manifest(raw_dir: Path, source: str, version: str) -> Manifest | No
     return m if all((raw_dir / rel).is_file() for rel in m.files) else None
 
 
-def _write_run(cfg: Config, source: str, dest: Path, manifest: Manifest, *, skipped: bool) -> None:
-    with stage_run("ingest", dest, params=(cfg.seed, cfg.ingest.sources[source])) as st:
+def _write_run(
+    cfg: Config, source: str, dest: Path, manifest: Manifest, *, skipped: bool, started: str
+) -> None:
+    params = (cfg.seed, cfg.ingest.sources[source])
+    with stage_run("ingest", dest, params=params, started_at=started) as st:
         st.output_rows = manifest.file_count
         st.extra = {"source": source, "version": manifest.version, "skipped": skipped}
 
@@ -38,6 +41,7 @@ def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> 
         raise ConfigError(
             f"source {source!r} is not in ingest.sources, expected one of {list(cfg.ingest.sources)}"
         )
+    started = utc_now()
     source_cfg = cfg.ingest.sources[source]
     adapter = get_source(source, source_cfg, seed=cfg.seed)
     layout = Layout(root)
@@ -49,7 +53,7 @@ def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> 
             log.info("ingest %s: up to date (%s)", source, current.version)
             if not (dest / "_run.json").is_file():
                 # A run that died between replace_dir and _run.json left complete data.
-                _write_run(cfg, source, dest, current, skipped=True)
+                _write_run(cfg, source, dest, current, skipped=True, started=started)
             return current
 
     tmp = layout.raw_root / f".tmp-{source}-{uuid.uuid4().hex}"
@@ -62,6 +66,6 @@ def run_ingest(cfg: Config, root: Path, source: str, *, force: bool = False) -> 
         shutil.rmtree(tmp, ignore_errors=True)
         raise
 
-    _write_run(cfg, source, dest, manifest, skipped=False)
+    _write_run(cfg, source, dest, manifest, skipped=False, started=started)
     log.info("ingest %s: %d files", source, manifest.file_count)
     return manifest

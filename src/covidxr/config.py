@@ -249,6 +249,11 @@ def _validate(cfg: Config) -> None:
     _check(ft.first_order_bins >= 2, "features.first_order_bins", "must be >= 2")
     _check(ft.haralick.distance >= 1, "features.haralick.distance", "must be >= 1")
     _check(ft.zernike.radius >= 1, "features.zernike.radius", "must be >= 1")
+    _check(
+        ft.zernike.radius * 2 == pr.size,
+        "features.zernike.radius",
+        "must equal process.size / 2 (the disk spans the processed image)",
+    )
     _check(1 <= ft.zernike.degree <= 20, "features.zernike.degree", "must be between 1 and 20")
     _check(ft.lbp.points >= 4, "features.lbp.points", "must be >= 4")
     _check(ft.lbp.radius >= 1, "features.lbp.radius", "must be >= 1")
