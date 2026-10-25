@@ -24,6 +24,7 @@ htmlcov/
 /data/
 /models/
 /images/
+/.demo/
 /reports/figures/
 
 # DVC internals
