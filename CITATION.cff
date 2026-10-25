@@ -5,7 +5,7 @@ title: "covidxr: reproducible pipeline for COVID-19 classification from chest X-
 authors:
   - family-names: "Sousa Filho"
     given-names: "Emanuel L. C. de"
-repository-code: "https://github.com/emanuel-luis/PROJETO-DE-PESQUISA-COVID-19"
+repository-code: "https://github.com/emanuel-luis/covid19-xray-pipeline"
 license: MIT
 keywords:
   - covid-19
