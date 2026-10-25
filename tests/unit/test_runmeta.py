@@ -12,7 +12,7 @@ ISO_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 def test_run_json_fields(tmp_path: Path) -> None:
-    params = CatalogConfig(near_dup_max_hamming=4)
+    params = CatalogConfig(near_dup_max_hamming=4, near_dup_max_mad=6.0)
     with stage_run("catalog", tmp_path, params) as stats:
         stats.input_rows = 10
         stats.output_rows = 8

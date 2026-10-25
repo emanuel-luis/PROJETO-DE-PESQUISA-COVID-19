@@ -12,6 +12,7 @@ ingest:
       n_corrupt: 2
 catalog:
   near_dup_max_hamming: 4
+  near_dup_max_mad: 6.0
 process:
   size: 64
   clahe:

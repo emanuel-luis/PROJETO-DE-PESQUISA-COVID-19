@@ -70,6 +70,8 @@ def quality_report(
         for r in df.groupby(["stage", "reason"]).size().reset_index(name="n").to_dict("records"):
             rejects.setdefault(str(r["stage"]), {})[str(r["reason"])] = int(r["n"])
     collapsed = catalog_run_extra.get("n_exact_duplicate_rows_collapsed", 0)
+    candidates = catalog_run_extra.get("n_near_dup_candidates", 0)
+    edges = catalog_run_extra.get("n_near_dup_edges", 0)
     dup = catalog["dup_cluster_id"].value_counts()
     grp = catalog["group_id"].value_counts()
     mixed = (catalog.groupby("dup_cluster_id")["label"].nunique() > 1).sum()
@@ -82,6 +84,8 @@ def quality_report(
         "width_percentiles": _percentiles(catalog["width"]),
         "height_percentiles": _percentiles(catalog["height"]),
         "n_exact_duplicate_rows_collapsed": collapsed if isinstance(collapsed, int) else 0,
+        "n_near_dup_candidates": candidates if isinstance(candidates, int) else 0,
+        "n_near_dup_edges": edges if isinstance(edges, int) else 0,
         "n_dup_clusters": int((dup > 1).sum()),
         "max_dup_cluster_size": int(dup.max()) if n else 0,
         "n_dup_clusters_mixed_labels": int(mixed),
