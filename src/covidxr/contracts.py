@@ -108,6 +108,23 @@ PREDICTIONS = Contract(
 )
 
 
+EVAL = Contract(
+    "eval",
+    pa.schema(
+        [
+            _f("image_id", pa.string()),
+            _f("split", pa.string()),
+            _f("model", pa.string()),
+            _f("source", pa.string()),
+            _f("y_true", pa.int8()),
+            _f("y_score", pa.float64()),
+            _f("y_pred", pa.int8()),
+        ]
+    ),
+    allowed={"split": frozenset({"val", "test"})},
+)
+
+
 def features_contract(columns: Sequence[str]) -> Contract:
     """image_id plus one non-null float64 column per feature."""
     fields = [_f("image_id", pa.string())] + [_f(c, pa.float64()) for c in columns]
