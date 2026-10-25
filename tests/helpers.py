@@ -20,3 +20,12 @@ def tree(path: Path) -> dict[str, bytes]:
         for p in sorted(path.rglob("*"))
         if p.is_file() and p.name != "_run.json"
     }
+
+
+def copy_dirs(src: Path, dst: Path, *rel: str) -> Layout:
+    """Copy the given directories (relative to src, e.g. "data/features") into dst."""
+    import shutil
+
+    for r in rel:
+        shutil.copytree(src / r, dst / r)
+    return Layout(dst)

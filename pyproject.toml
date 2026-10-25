@@ -63,7 +63,7 @@ timeout = 60
 testpaths = ["tests"]
 
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*", "mahotas", "mahotas.*"]
+module = ["pyarrow", "pyarrow.*", "mahotas", "mahotas.*", "sklearn", "sklearn.*", "joblib"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
