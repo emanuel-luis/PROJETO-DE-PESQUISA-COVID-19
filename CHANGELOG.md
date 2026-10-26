@@ -37,6 +37,9 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
   `CLAUDE.md`.
 - Publications section, `CITATION.cff` and `docs/publications.bib` for the two ERCEMAPI 2022
   papers.
+- First run on the real data (41,077 images): `dvc.lock`, `reports/quality.json`,
+  `reports/metrics.json` and the README table. Test F1 0.9446 for the MLP baseline on the
+  handcrafted features and 0.9830 for ResNet-18. `make lint` now runs `covidxr report --check`.
 
 ### Changed
 
