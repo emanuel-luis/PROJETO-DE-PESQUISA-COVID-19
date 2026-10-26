@@ -108,8 +108,18 @@ params.yaml         every tunable value; params.ci.yaml is the synthetic profile
 
 ## Results (pipeline)
 
+Run on the three sources: 41,077 images after deduplication, split 70/10/20 into 28,753 train,
+4,109 validation and 8,215 test images. Copies of one radiograph across sources and images of
+one patient always stay in the same split. Metrics per source are in `reports/metrics.json` and
+the data quality summary in `reports/quality.json`.
+
 <!-- covidxr:metrics:start -->
-Not generated yet: run `make pipeline`.
+| Family | Model | F1 | Accuracy | Specificity | Recall | Precision | ROC AUC | Test images |
+| --- | --- | --: | --: | --: | --: | --: | --: | --: |
+| baseline | mlp | 0.9446 | 0.9488 | 0.9401 | 0.9591 | 0.9306 | 0.9872 | 8215 |
+| cnn | resnet18 | 0.9830 | 0.9844 | 0.9788 | 0.9912 | 0.9750 | 0.9984 | 8215 |
+
+Test split, decision threshold 0.5.
 <!-- covidxr:metrics:end -->
 
 ## Results (2022 notebook)
