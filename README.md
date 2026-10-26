@@ -111,7 +111,8 @@ params.yaml         every tunable value; params.ci.yaml is the synthetic profile
 Run on the three sources: 41,077 images after deduplication, split 70/10/20 into 28,753 train,
 4,109 validation and 8,215 test images. Copies of one radiograph across sources and images of
 one patient always stay in the same split. Metrics per source are in `reports/metrics.json` and
-the data quality summary in `reports/quality.json`.
+the data quality summary in `reports/quality.json`. The ieee8023 test slice is small (62 images,
+only 1 normal), so its per-source specificity and ROC AUC carry no information.
 
 <!-- covidxr:metrics:start -->
 | Family | Model | F1 | Accuracy | Specificity | Recall | Precision | ROC AUC | Test images |
