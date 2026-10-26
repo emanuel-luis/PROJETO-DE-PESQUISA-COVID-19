@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   lint:
-    name: lint (ruff + mypy)
+    name: lint (ruff, mypy, README results check)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
