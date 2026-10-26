@@ -10,10 +10,11 @@ install: ## Install locked dependencies
 install-cnn: ## Install locked dependencies plus the CNN extra (torch)
 	uv sync --locked --extra cnn
 
-lint: ## Ruff check, ruff format check and mypy
+lint: ## Ruff check, ruff format check, mypy and the README results check
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy src
+	uv run covidxr report --check
 
 test: ## Run tests, including slow ones
 	uv run pytest -m "not external and not gpu"
