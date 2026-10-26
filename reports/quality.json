@@ -1,0 +1,45 @@
+{
+  "by_source_label": {
+    "ieee8023": {
+      "covid": 282,
+      "normal": 8
+    },
+    "kaggle_covidqu": {
+      "covid": 14869,
+      "normal": 12157
+    },
+    "kaggle_radiography": {
+      "covid": 3570,
+      "normal": 10191
+    }
+  },
+  "class_balance": {
+    "covid": 0.4558,
+    "normal": 0.5442
+  },
+  "height_percentiles": {
+    "p0": 202.0,
+    "p100": 4757.0,
+    "p5": 256.0,
+    "p50": 256.0,
+    "p95": 299.0
+  },
+  "max_dup_cluster_size": 13,
+  "max_group_size": 28,
+  "n_catalog_rows": 41077,
+  "n_dup_clusters": 13862,
+  "n_dup_clusters_mixed_labels": 0,
+  "n_exact_duplicate_rows_collapsed": 47,
+  "n_groups": 22712,
+  "n_near_dup_candidates": 4896289,
+  "n_near_dup_edges": 23354,
+  "n_processed_rows": 41077,
+  "rejects": {},
+  "width_percentiles": {
+    "p0": 220.0,
+    "p100": 5623.0,
+    "p5": 256.0,
+    "p50": 256.0,
+    "p95": 299.0
+  }
+}

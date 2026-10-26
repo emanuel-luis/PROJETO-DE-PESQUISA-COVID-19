@@ -1,0 +1,384 @@
+schema: '2.0'
+stages:
+  ingest@ieee8023:
+    cmd: covidxr ingest --source ieee8023
+    deps:
+    - path: src/covidxr/ingest.py
+      hash: md5
+      md5: 60ed288b7faebd4e82ca4a93997ffc60
+      size: 2733
+    - path: src/covidxr/sources
+      hash: md5
+      md5: 0ee0aea04cd692fb6de02372d4e6b93c.dir
+      size: 53536
+      nfiles: 16
+    params:
+      params.yaml:
+        ingest.sources.ieee8023:
+          repo: ieee8023/covid-chestxray-dataset
+          ref: 78543292f8b01d5e0ed1d0e15dce71949f0657bb
+          views:
+          - AP
+          - AP Supine
+        seed: 42
+    outs:
+    - path: data/raw/ieee8023
+      hash: md5
+      md5: 70322a80b8b9c25f248b60c07472c35f.dir
+      size: 552032153
+      nfiles: 933
+  ingest@kaggle_radiography:
+    cmd: covidxr ingest --source kaggle_radiography
+    deps:
+    - path: src/covidxr/ingest.py
+      hash: md5
+      md5: 60ed288b7faebd4e82ca4a93997ffc60
+      size: 2733
+    - path: src/covidxr/sources
+      hash: md5
+      md5: 0ee0aea04cd692fb6de02372d4e6b93c.dir
+      size: 53536
+      nfiles: 16
+    params:
+      params.yaml:
+        ingest.sources.kaggle_radiography:
+          handle: tawsifurrahman/covid19-radiography-database
+          version: 5
+        seed: 42
+    outs:
+    - path: data/raw/kaggle_radiography
+      hash: md5
+      md5: d4d86a67dad81c272036035df94fb7fe.dir
+      size: 511248403
+      nfiles: 13810
+  ingest@kaggle_covidqu:
+    cmd: covidxr ingest --source kaggle_covidqu
+    deps:
+    - path: src/covidxr/ingest.py
+      hash: md5
+      md5: 60ed288b7faebd4e82ca4a93997ffc60
+      size: 2733
+    - path: src/covidxr/sources
+      hash: md5
+      md5: 0ee0aea04cd692fb6de02372d4e6b93c.dir
+      size: 53536
+      nfiles: 16
+    params:
+      params.yaml:
+        ingest.sources.kaggle_covidqu:
+          handle: anasmohammedtahir/covidqu
+          version: 7
+        seed: 42
+    outs:
+    - path: data/raw/kaggle_covidqu
+      hash: md5
+      md5: 94ddbff38a1604b5186fe2285c932a49.dir
+      size: 792218986
+      nfiles: 27028
+  catalog:
+    cmd: covidxr catalog
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: c2ec6e492b30776a7e75d2c1cefe5291.dir
+      size: 1855499542
+      nfiles: 41771
+    - path: src/covidxr/catalog.py
+      hash: md5
+      md5: 3e96e5d1d581d5248db298d92cde2e45
+      size: 10892
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/imaging.py
+      hash: md5
+      md5: 1b8f5a3e055ac0c53b144bf25ce3130b
+      size: 4454
+    - path: src/covidxr/sources
+      hash: md5
+      md5: 0ee0aea04cd692fb6de02372d4e6b93c.dir
+      size: 53536
+      nfiles: 16
+    params:
+      params.yaml:
+        catalog:
+          near_dup_max_hamming: 4
+          near_dup_max_mad: 6.0
+        ingest:
+          sources:
+            ieee8023:
+              repo: ieee8023/covid-chestxray-dataset
+              ref: 78543292f8b01d5e0ed1d0e15dce71949f0657bb
+              views:
+              - AP
+              - AP Supine
+            kaggle_radiography:
+              handle: tawsifurrahman/covid19-radiography-database
+              version: 5
+            kaggle_covidqu:
+              handle: anasmohammedtahir/covidqu
+              version: 7
+    outs:
+    - path: data/catalog
+      hash: md5
+      md5: 2576000fc53549143c7a687dab211022.dir
+      size: 8011862
+      nfiles: 3
+  process:
+    cmd: covidxr process
+    deps:
+    - path: data/catalog
+      hash: md5
+      md5: 2576000fc53549143c7a687dab211022.dir
+      size: 8011862
+      nfiles: 3
+    - path: data/raw
+      hash: md5
+      md5: c2ec6e492b30776a7e75d2c1cefe5291.dir
+      size: 1855499542
+      nfiles: 41771
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/imaging.py
+      hash: md5
+      md5: 1b8f5a3e055ac0c53b144bf25ce3130b
+      size: 4454
+    - path: src/covidxr/parallel.py
+      hash: md5
+      md5: 66f93761679f86f990187d21a7ce03de
+      size: 615
+    - path: src/covidxr/process.py
+      hash: md5
+      md5: a22709196ec7a8822580af29900a7c67
+      size: 6346
+    params:
+      params.yaml:
+        process.clahe:
+          enabled: false
+          clip_limit: 2.0
+          tile_grid: 8
+        process.size: 256
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 2d45dd6da900aa31a77056ea434f7eb9.dir
+      size: 1329483577
+      nfiles: 41080
+    - path: reports/quality.json
+      hash: md5
+      md5: ae25bac124c5467020b00d818e2d1653
+      size: 871
+  features:
+    cmd: covidxr features
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 2d45dd6da900aa31a77056ea434f7eb9.dir
+      size: 1329483577
+      nfiles: 41080
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/features.py
+      hash: md5
+      md5: e61694b2222a82c6cadcecc5f0373ac7
+      size: 6778
+    - path: src/covidxr/imaging.py
+      hash: md5
+      md5: 1b8f5a3e055ac0c53b144bf25ce3130b
+      size: 4454
+    - path: src/covidxr/parallel.py
+      hash: md5
+      md5: 66f93761679f86f990187d21a7ce03de
+      size: 615
+    params:
+      params.yaml:
+        features.first_order_bins: 256
+        features.haralick:
+          distance: 1
+          ignore_zeros: false
+        features.lbp:
+          points: 8
+          radius: 3
+          method: default
+          bins: 10
+        features.zernike:
+          radius: 128
+          degree: 8
+    outs:
+    - path: data/features
+      hash: md5
+      md5: 5ff68b98c2af1883154dd564e8278061.dir
+      size: 40894260
+      nfiles: 3
+  split:
+    cmd: covidxr split
+    deps:
+    - path: data/catalog
+      hash: md5
+      md5: 2576000fc53549143c7a687dab211022.dir
+      size: 8011862
+      nfiles: 3
+    - path: data/features
+      hash: md5
+      md5: 5ff68b98c2af1883154dd564e8278061.dir
+      size: 40894260
+      nfiles: 3
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/split.py
+      hash: md5
+      md5: 917f926cccb73aa7ce47665894e25ba9
+      size: 4427
+    params:
+      params.yaml:
+        seed: 42
+        split:
+          test_size: 0.2
+          val_size: 0.1
+    outs:
+    - path: data/splits
+      hash: md5
+      md5: 0032c3ae3d19e2612394527c62bc593a.dir
+      size: 4839371
+      nfiles: 2
+  train_baseline:
+    cmd: covidxr train-baseline
+    deps:
+    - path: data/features
+      hash: md5
+      md5: 5ff68b98c2af1883154dd564e8278061.dir
+      size: 40894260
+      nfiles: 3
+    - path: data/splits
+      hash: md5
+      md5: 0032c3ae3d19e2612394527c62bc593a.dir
+      size: 4839371
+      nfiles: 2
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/features.py
+      hash: md5
+      md5: e61694b2222a82c6cadcecc5f0373ac7
+      size: 6778
+    - path: src/covidxr/training/baseline.py
+      hash: md5
+      md5: 50919792e8f5eab107f5e4b629e06cf7
+      size: 5653
+    params:
+      params.yaml:
+        seed: 42
+        train_baseline.candidates:
+        - logreg
+        - random_forest
+        - mlp
+        train_baseline.logreg:
+          C: 1.0
+          max_iter: 1000
+        train_baseline.mlp:
+          hidden_layer_sizes:
+          - 100
+          alpha: 0.0001
+          learning_rate_init: 0.01
+          max_iter: 500
+        train_baseline.random_forest.max_depth:
+        train_baseline.random_forest.n_estimators: 300
+    outs:
+    - path: models/baseline
+      hash: md5
+      md5: fd0b8da3aac7f35435cc2b8c0e6872f7.dir
+      size: 1279261
+      nfiles: 4
+  train_cnn:
+    cmd: covidxr train-cnn
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 2d45dd6da900aa31a77056ea434f7eb9.dir
+      size: 1329483577
+      nfiles: 41080
+    - path: data/splits
+      hash: md5
+      md5: 0032c3ae3d19e2612394527c62bc593a.dir
+      size: 4839371
+      nfiles: 2
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/imaging.py
+      hash: md5
+      md5: 1b8f5a3e055ac0c53b144bf25ce3130b
+      size: 4454
+    - path: src/covidxr/training/cnn.py
+      hash: md5
+      md5: 4448d01101408ea305a9efb8d4f9da1d
+      size: 16802
+    params:
+      params.yaml:
+        seed: 42
+        train_cnn.amp: true
+        train_cnn.arch: resnet18
+        train_cnn.batch_size: 32
+        train_cnn.device: auto
+        train_cnn.enabled: true
+        train_cnn.epochs: 10
+        train_cnn.input_size: 224
+        train_cnn.lr: 0.0003
+        train_cnn.patience: 3
+        train_cnn.weight_decay: 0.0001
+        train_cnn.weights: imagenet
+    outs:
+    - path: models/cnn
+      hash: md5
+      md5: d7b6e04f3747897e9739c602466554ba.dir
+      size: 45645038
+      nfiles: 4
+  evaluate:
+    cmd: covidxr evaluate
+    deps:
+    - path: data/splits
+      hash: md5
+      md5: 0032c3ae3d19e2612394527c62bc593a.dir
+      size: 4839371
+      nfiles: 2
+    - path: models/baseline
+      hash: md5
+      md5: fd0b8da3aac7f35435cc2b8c0e6872f7.dir
+      size: 1279261
+      nfiles: 4
+    - path: models/cnn
+      hash: md5
+      md5: d7b6e04f3747897e9739c602466554ba.dir
+      size: 45645038
+      nfiles: 4
+    - path: src/covidxr/contracts.py
+      hash: md5
+      md5: 202fa44ebb5e83236e5d568a88f08a6f
+      size: 5227
+    - path: src/covidxr/evaluate.py
+      hash: md5
+      md5: 6084ae8b8a60e3fe229558958ce5bc45
+      size: 4447
+    params:
+      params.yaml:
+        evaluate:
+          threshold: 0.5
+    outs:
+    - path: data/eval
+      hash: md5
+      md5: 8a4475bb1bf2488fb8c7bca00553b267.dir
+      size: 996605
+      nfiles: 2
+    - path: reports/metrics.json
+      hash: md5
+      md5: ab658d61072f2a7f2096e52810d6b83c
+      size: 3641
