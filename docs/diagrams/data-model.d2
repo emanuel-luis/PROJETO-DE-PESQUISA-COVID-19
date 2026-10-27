@@ -1,0 +1,100 @@
+# The Parquet tables and their keys: src/covidxr/contracts.py (CATALOG, REJECTS, PROCESSED,
+# features_contract, SPLITS, PREDICTIONS, EVAL). A primary key is a contract `key` (validate()
+# rejects duplicates). Each arrow is an image_id link the code relies on: process and features
+# keep only rows of the previous table, split keeps catalog rows, evaluate rejects predictions
+# whose image_id is not in splits. The splits -> features link (split keeps only images that
+# have features; the trainers join splits 1:1 with features and processed) is in the note: as an
+# arrow it made a five-table chain that ELK drew 3,000 px wide, and a root grid stretched the
+# small tables. JSON reports and run metadata are in data-model-reports.d2.
+# `label`, `width` and `height` are D2 keywords, hence the quotes.
+...@_style
+
+title: "Data model: the Parquet tables and how image_id links them" {
+  shape: text
+  near: top-center
+  style: {font-size: 24; bold: true}
+}
+
+note: "Each table is <name>.parquet in its directory; rejects.parquet sits in data/catalog,\ndata/processed and data/features. Every table is validated against its pyarrow contract\nbefore it is written; columns are non-null unless marked nullable. image_id is the sha256\nof the image bytes. features has 119 finite columns: fo_* (first order), har_* (Haralick),\ntas_* (TAS), zer_* (Zernike) and lbp_* (LBP). splits holds only the catalog images that\nhave features. eval holds the predictions rows, with source from splits and y_pred at\nthe fixed threshold." {
+  shape: text
+  near: bottom-center
+  style.font-size: 18
+}
+
+direction: right
+
+predictions: "predictions · models/<family>" {
+  shape: sql_table
+  image_id: string {constraint: foreign_key}
+  split: "string (val, test)"
+  family: "string (baseline, cnn)"
+  model: string
+  y_true: int8
+  y_score: float64
+}
+
+splits: "splits · data/splits" {
+  shape: sql_table
+  image_id: string {constraint: [primary_key; foreign_key]}
+  group_id: string
+  source: string
+  "label": "string (covid, normal)"
+  label_int: int8
+  split: "string (train, val, test)"
+}
+
+features: "features · data/features" {
+  shape: sql_table
+  image_id: string {constraint: [primary_key; foreign_key]}
+  "fo_* … lbp_*": "119 × float64"
+}
+
+eval: "eval · data/eval" {
+  shape: sql_table
+  image_id: string {constraint: foreign_key}
+  split: string
+  family: string
+  model: string
+  source: string
+  y_true: int8
+  y_score: float64
+  y_pred: int8
+}
+
+catalog: "catalog · data/catalog" {
+  shape: sql_table
+  image_id: "string (sha256)" {constraint: primary_key}
+  source: string
+  sources: "list<string>"
+  "label": "string (covid, normal)"
+  label_int: int8
+  path: string
+  patient_id: "string, nullable"
+  "width": int32
+  "height": int32
+  dhash: uint64
+  dup_cluster_id: string
+  group_id: string
+}
+
+processed: "processed · data/processed" {
+  shape: sql_table
+  image_id: string {constraint: [primary_key; foreign_key]}
+  processed_path: string
+}
+
+rejects: "rejects · three layers" {
+  shape: sql_table
+  stage: string
+  source: "string, nullable"
+  path: "string, nullable"
+  image_id: "string, nullable"
+  reason: "string (REJECT_REASONS)"
+  detail: string
+}
+
+processed.image_id -> catalog.image_id
+features.image_id -> processed.image_id
+splits.image_id -> catalog.image_id
+predictions.image_id -> splits.image_id
+eval.image_id -> splits.image_id

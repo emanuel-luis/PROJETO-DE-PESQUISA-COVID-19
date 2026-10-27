@@ -1,0 +1,100 @@
+# The JSON documents: run metadata (_manifest.json, _run.json) and the two tracked reports
+# (reports/quality.json, reports/metrics.json). Grounded in src/covidxr/sources/base.py
+# (Manifest), runmeta.py (stage_run), process.py (quality_report) and evaluate.py
+# (binary_metrics, run_evaluate). Shown as tables: one row per key, with its JSON type.
+# The Parquet tables are in data-model.d2. Two columns: invisible `layer` edges stack the run
+# metadata and the quality report on the left; the metrics documents nest on the right.
+...@_style
+
+title: "Data model: run metadata, data quality and metrics (JSON)" {
+  shape: text
+  near: top-center
+  style: {font-size: 24; bold: true}
+}
+
+note: "quality.json and metrics.json carry no timestamps or run ids, so they change only when\nresults change; both are tracked as DVC metrics and committed. A ratio with a zero\ndenominator is 0.0; numbers are rounded to 4 decimals." {
+  shape: text
+  near: bottom-center
+  style.font-size: 18
+}
+
+direction: down
+
+manifest: "_manifest.json · data/raw/<source>" {
+  shape: sql_table
+  source: string
+  version: string
+  url: string
+  license: string
+  citation: string
+  fetched_at: "string (UTC)"
+  file_count: integer
+  archive_sha256: "string, null for Kaggle"
+  files: "map: path → sha256"
+}
+
+run: "_run.json · every layer directory" {
+  shape: sql_table
+  run_id: string
+  stage: string
+  started_at: "string (UTC)"
+  finished_at: "string (UTC)"
+  input_rows: integer
+  output_rows: integer
+  rejects: integer
+  params_hash: string
+  package_version: string
+  "+ stage extras": "e.g. skipped, resumed_from_epoch"
+}
+
+quality: "reports/quality.json · process" {
+  shape: sql_table
+  n_catalog_rows: integer
+  n_processed_rows: integer
+  by_source_label: "map: source → label → n"
+  class_balance: "map: label → share"
+  rejects: "map: stage → reason → n"
+  width_percentiles: "p0, p5, p50, p95, p100"
+  height_percentiles: "p0, p5, p50, p95, p100"
+  n_exact_duplicate_rows_collapsed: integer
+  n_near_dup_candidates: integer
+  n_near_dup_edges: integer
+  n_dup_clusters: integer
+  max_dup_cluster_size: integer
+  n_dup_clusters_mixed_labels: integer
+  n_groups: integer
+  max_group_size: integer
+}
+
+metrics: "reports/metrics.json · evaluate" {
+  shape: sql_table
+  threshold: number
+  models: "map: family → model"
+}
+
+model: "models.<family>" {
+  shape: sql_table
+  selected: "string (candidate or arch)"
+  val: metric set
+  test: metric set
+  test_by_source: "map: source → metric set"
+}
+
+metric_set: "metric set" {
+  shape: sql_table
+  n: integer
+  accuracy: number
+  precision: number
+  recall: number
+  specificity: number
+  f1: number
+  roc_auc: "number, null with one class"
+  confusion: "tn, fp, fn, tp"
+}
+
+manifest -> run {class: layer}
+run -> quality {class: layer}
+metrics.models -> model
+model.val -> metric_set
+model.test -> metric_set
+model.test_by_source -> metric_set

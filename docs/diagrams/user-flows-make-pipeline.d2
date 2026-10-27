@@ -1,0 +1,41 @@
+# Operator journey: `make pipeline` on the real sources. Grounded in the Makefile (pipeline
+# target), dvc.yaml, src/covidxr/cli.py, ingest.py, sources/{ieee8023,kaggle}.py, the stage
+# modules and report.py.
+...@_style
+
+run: "make pipeline: three public datasets to the README results" {
+  shape: sequence_diagram
+  style: {font-size: 24; bold: true}
+
+  operator: Operator {class: actor}
+  make: make {class: process}
+  dvc: "DVC\n(dvc repro)" {class: process}
+  cli: "covidxr CLI" {class: process}
+  files: "data/, models/,\nreports/, README" {class: store}
+  remote: "GitHub and\nKaggle" {class: external}
+  gpu: "GPU\n(CUDA)" {class: external}
+
+  operator -> make: "make pipeline"
+  make -> dvc: "dvc repro"
+  dvc -> dvc: "compare deps, params and\nouts with dvc.lock; run\nonly the stale stages"
+  dvc -> cli: "covidxr ingest\n--source <name>\n(once per source)"
+  cli -> remote: "ieee8023: tarball at the\npinned commit, unless in\ndata/.cache; Kaggle: check\na token exists, kagglehub"
+  cli -> files: "data/raw/<source>:\nimages, _manifest.json,\nthen _run.json"
+  dvc -> cli: "covidxr catalog"
+  cli -> files: "catalog.parquet: unique\nimages, near-duplicate\nclusters, groups;\nrejects.parquet"
+  dvc -> cli: "covidxr process, features"
+  cli -> files: "processed PNGs,\nfeatures,\nreports/quality.json"
+  dvc -> cli: "covidxr split"
+  cli -> files: "splits.parquet:\nstratified, group-aware\ntrain, val, test"
+  dvc -> cli: "covidxr train-baseline"
+  cli -> files: "models/baseline: best\nof three candidates\non validation F1"
+  dvc -> cli: "covidxr train-cnn"
+  cli -> gpu: "ResNet-18 epochs (device: auto)"
+  cli -> files: "models/cnn; checkpoint\nper epoch in\ndata/.cache/cnn"
+  dvc -> cli: "covidxr evaluate"
+  cli -> files: "data/eval,\nreports/metrics.json"
+  dvc -> files: "dvc.lock and the DVC cache" {class: meta}
+  make -> cli: "covidxr report"
+  cli -> files: "README results\nblock, from\nreports/metrics.json"
+  make -> operator: "README results;\na second run skips\nevery stage" {class: meta}
+}
