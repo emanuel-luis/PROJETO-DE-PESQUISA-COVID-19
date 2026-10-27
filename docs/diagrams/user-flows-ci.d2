@@ -1,0 +1,31 @@
+# CI on a pull request: the same DAG on synthetic images, never real data or credentials.
+# Grounded in .github/workflows/ci.yml (jobs lint, test, test-windows, pipeline, diagrams),
+# params.ci.yaml (synthetic source, CNN on CPU without pretrained weights) and the Makefile.
+...@_style
+
+ci: "CI on a pull request: the whole pipeline on synthetic images" {
+  shape: sequence_diagram
+  style: {font-size: 24; bold: true}
+
+  dev: Contributor {class: actor}
+  gh: "GitHub\nActions" {class: external}
+  diagrams: "diagrams job" {class: process}
+  lint: "lint job" {class: process}
+  tests: "test jobs\nLinux, Windows" {class: process}
+  pipeline: "pipeline job" {class: process}
+
+  dev -> gh: "push a branch,\nopen a pull request"
+  gh -> lint: "ruff check, ruff format --check,\nmypy strict, covidxr report --check"
+  gh -> diagrams: "no needs, starts at once:\nmake d2-install (sha256 checked),\nmake diagrams-check"
+  diagrams -> gh: "rendered SVGs uploaded\nas an artifact" {class: meta}
+  lint -> gh: "pass" {class: meta}
+  gh -> tests: "after lint: unit tests and the\nsynthetic end-to-end test;\nexternal and gpu tests deselected;\nWindows runs without torch"
+  gh -> pipeline: "after lint"
+  pipeline -> pipeline: "cp params.ci.yaml\nparams.yaml: synthetic\nsource, 120 images plus\nduplicates, a label\nconflict, corrupt files;\nCNN on CPU, no\nImageNet weights"
+  pipeline -> pipeline: "uv run dvc repro:\nthe same DAG, no\nKaggle token,\nno download"
+  pipeline -> pipeline: "every stage directory\nhas _run.json; quality\nand metrics JSON\nexist; dvc status"
+  diagrams -> gh: "pass" {class: meta}
+  tests -> gh: "pass" {class: meta}
+  pipeline -> gh: "pass" {class: meta}
+  gh -> dev: "required checks green:\nthe pull request can merge" {class: meta}
+}

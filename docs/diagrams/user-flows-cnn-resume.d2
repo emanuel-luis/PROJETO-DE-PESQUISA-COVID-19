@@ -1,0 +1,38 @@
+# Resumable GPU training: an interrupted train_cnn run and the rerun that continues it.
+# Grounded in src/covidxr/training/cnn.py (run_train_cnn, checkpoint_key), layout.py
+# (cnn_cache), dvc.yaml (train_cnn: checkpoints are not a DVC out) and docs/DECISIONS.md.
+...@_style
+
+resume: "Resumable CNN training: an interrupted run continues at the next epoch" {
+  shape: sequence_diagram
+  style: {font-size: 24; bold: true}
+
+  operator: Operator {class: actor}
+  dvc: "DVC\n(dvc repro)" {class: process}
+  cnn: "covidxr\ntrain-cnn" {class: process}
+  gpu: "GPU\n(CUDA)" {class: external}
+  ckpt: "data/.cache/cnn/\n<key>/last.pt" {class: store}
+  out: "models/cnn" {class: store}
+
+  operator -> dvc: "make pipeline"
+  dvc -> out: "delete the stage outs"
+  dvc -> cnn: "covidxr train-cnn"
+  cnn -> cnn: "key = hash of seed, train_cnn\nparams, device type and the\nsha256 of splits, processed\nand data/processed/_run.json"
+  cnn -> ckpt: "delete checkpoints of other keys;\nno last.pt: start at epoch 1"
+  first: "each epoch" {
+    cnn -> gpu: "train, then score validation\n(F1 at threshold 0.5)"
+    cnn -> ckpt: "write last.pt atomically: weights,\noptimizer, best weights so far,\nhistory, every RNG state"
+  }
+  cnn -> cnn: "interrupted after epoch k:\nCtrl+C, a crash, or the\nGPU is needed elsewhere" {class: meta}
+  operator -> dvc: "make pipeline again"
+  dvc -> out: "delete the stage outs"
+  dvc -> cnn: "covidxr train-cnn"
+  cnn -> ckpt: "same key: load last.pt and\nrestore the RNG states"
+  then: "epochs k+1 onward, until epochs or patience" {
+    cnn -> gpu: "train and validate"
+    cnn -> ckpt: "write last.pt"
+  }
+  cnn -> out: "model.pt (best epoch), train_log.json,\npredictions.parquet, _run.json with\nresumed_from_epoch"
+  cnn -> ckpt: "delete the checkpoint directory,\nonly after the outputs are written"
+  cnn -> operator: "same final weights as an\nuninterrupted run (tested)" {class: meta}
+}
