@@ -40,6 +40,11 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
 - First run on the real data (41,077 images): `dvc.lock`, `reports/quality.json`,
   `reports/metrics.json` and the README table. Test F1 0.9446 for the MLP baseline on the
   handcrafted features and 0.9830 for ResNet-18. `make lint` now runs `covidxr report --check`.
+- D2 diagrams in `docs/diagrams/` (architecture, data flow, the Parquet tables, the JSON reports
+  and run metadata, and `make pipeline`, resumed CNN training and CI as sequence diagrams),
+  rendered to committed SVGs that follow GitHub's light and dark mode, with a shared
+  `_style.d2`. Make targets `d2-install`, `diagrams`, `diagrams-check` and `diagrams-watch`, and
+  a CI job `diagrams` that fails on a stale SVG and uploads the rendered ones.
 
 ### Changed
 
@@ -48,6 +53,9 @@ First version of the DVC pipeline that replaces the 2022 notebook scripts (kept 
 - The `master` branch was renamed `main` and the repository renamed to
   `covid19-xray-pipeline`; two large feature CSV files were removed from history.
 - Build requirement moved to `uv_build>=0.13,<0.14`.
+- The README shows the D2 diagrams instead of the inline Mermaid architecture block, and
+  `docs/DATA.md` shows the two data-model diagrams. The Makefile runs its recipes with bash
+  (`-eu -o pipefail`).
 
 ### Fixed
 

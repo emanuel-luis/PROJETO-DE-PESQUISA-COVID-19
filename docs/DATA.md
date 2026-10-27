@@ -78,6 +78,10 @@ incomplete.
 Columns are non-null unless marked nullable. `validate()` rejects missing or extra columns, wrong
 types, nulls in non-null columns, duplicate keys and values outside the allowed sets.
 
+![Data model of the Parquet tables: catalog has one row per unique image keyed by image_id, the sha256 of the bytes; processed and features are keyed by the same image_id and link back to catalog; splits keys catalog images with group_id, label and split; predictions and eval reference splits by image_id; rejects lists the rows a stage could not use, with a reason](diagrams/data-model.svg)
+
+Source: [data-model.d2](diagrams/data-model.d2).
+
 - catalog (key `image_id`): `image_id` (sha256 of the file bytes), `source`, `sources` (every
   source that holds the same bytes), `label` (`covid` or `normal`), `label_int`, `path`,
   `patient_id` (nullable), `width`, `height`, `dhash` (64-bit perceptual hash), `dup_cluster_id`
@@ -137,3 +141,10 @@ CNN.
 `fetched_at`, `file_count`, `archive_sha256` (null for Kaggle), and `files` (relative path to
 sha256 for every file). Ingest is skipped when the manifest matches the pinned version and every
 listed file exists.
+
+`reports/metrics.json` holds the decision threshold and, per model family, the selected model,
+the validation and test metrics, and the test metrics per source. The JSON documents, key by key:
+
+![JSON documents: _manifest.json per raw source with version, license, fetched_at and the sha256 of every file; _run.json per layer directory with run_id, UTC start and finish, row counts, rejects and params_hash; reports/quality.json with row counts, class balance, rejects, image size percentiles and duplicate and group statistics; reports/metrics.json with the threshold and, per model family, the selected model and the validation, test and per-source test metrics: n, accuracy, precision, recall, specificity, F1, ROC AUC and the confusion counts](diagrams/data-model-reports.svg)
+
+Source: [data-model-reports.d2](diagrams/data-model-reports.d2).
