@@ -1,0 +1,77 @@
+# The system in context: the DVC stages, the external systems they call, where the Kaggle token
+# and the GPU come in, and how make and CI run the pipeline. Grounded in dvc.yaml, the Makefile,
+# src/covidxr/{ingest,catalog,process,features,split,evaluate,report}.py, sources/,
+# training/{baseline,cnn}.py and .github/workflows/. Artifacts per stage are in data-flow.d2.
+...@_style
+
+title: "Architecture: one DVC pipeline from three public datasets to the README results" {
+  shape: text
+  near: top-center
+  style: {font-size: 24; bold: true}
+}
+
+direction: down
+
+operator: Operator {class: actor}
+make: "make pipeline\ndvc repro, then\ncovidxr report" {class: process}
+actions: "GitHub Actions\nci.yml: lint, tests, diagrams,\ndvc repro on synthetic images\n(no token, CPU only)\nsecurity.yml: pip-audit" {class: external}
+
+github: "GitHub codeload\nieee8023 tarball\nat a pinned commit" {class: external}
+kaggle: "Kaggle (kagglehub)\nRadiography v5,\nCOVID-QU-Ex v7" {class: external}
+token: "Kaggle API token\nKAGGLE_API_TOKEN or\n~/.kaggle/access_token:\ningest only checks it exists" {class: check}
+weights: "PyTorch download server\nImageNet ResNet-18 weights\n(weights: imagenet),\nfetched once, then cached" {class: external}
+gpu: "Local GPU (CUDA)\ndevice: auto; shared,\nso a run can be interrupted" {class: external}
+
+dvc: "DVC pipeline (dvc.yaml)" {
+  class: group
+  ingest: "ingest × 3 sources\n(foreach), manifest\nwith sha256 per file" {class: process}
+  catalog: "catalog\ncontent-hash ids, dedupe,\nnear-duplicate clusters,\npatient groups" {class: process}
+  process: "process\nresize and pad,\noptional CLAHE,\nquality report" {class: process}
+  features: "features\n119 handcrafted\nfeatures" {class: process}
+  split: "split\nstratified,\ngroup-aware" {class: process}
+  train_baseline: "train_baseline\nlogreg, random forest, MLP;\nbest on validation F1" {class: process}
+  train_cnn: "train_cnn\nResNet-18 transfer learning,\ncheckpoint every epoch" {class: process}
+  evaluate: "evaluate\nmetrics per family,\nsplit and source" {class: process}
+
+  ingest -> catalog
+  catalog -> process
+  process -> features
+  catalog -> split
+  features -> split
+  features -> train_baseline
+  split -> train_baseline
+  process -> train_cnn
+  split -> train_cnn
+  train_baseline -> evaluate
+  train_cnn -> evaluate
+  split -> evaluate
+}
+
+ckpt: "data/.cache/cnn/\n<key>/last.pt\nnot a DVC out: survives\nan interrupted run" {class: store}
+report: "covidxr report\nreads reports/metrics.json" {class: process}
+readme: "README results block" {class: serving}
+
+operator -> make
+make -> dvc: "dvc repro"
+actions -> dvc: "dvc repro"
+github -> dvc.ingest
+kaggle -> dvc.ingest
+token -> kaggle {class: meta}
+dvc.train_cnn -> weights
+dvc.train_cnn <-> gpu
+dvc.train_cnn <-> ckpt
+dvc.evaluate -> report
+make -> report {class: meta}
+report -> readme
+
+legend: Legend {
+  class: legend
+  grid-columns: 4
+  actor: actor {class: [actor; legend-actor]}
+  external: external system {class: [external; legend-item]}
+  process: process or stage {class: [process; legend-item]}
+  check: credential {class: [check; legend-item]}
+  store: stored data {class: [store; legend-store]}
+  serving: serving {class: [serving; legend-item]}
+  edges: "solid arrow: data or a call\ndashed: control" {shape: text; style.font-size: 13}
+}

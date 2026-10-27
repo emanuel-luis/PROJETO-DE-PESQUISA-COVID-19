@@ -1,0 +1,87 @@
+# Layers from the three sources to the README results: what each stage stores, and where the
+# manifests, contracts, rejects, the quality report and the split guard sit. Grounded in
+# src/covidxr/{layout,contracts,ingest,catalog,process,features,split,evaluate,report}.py,
+# training/{baseline,cnn}.py, dvc.yaml and docs/DATA.md. Stage logic is in architecture.d2.
+...@_style
+
+title: "Data flow: artifacts per stage, from source images to the README results" {
+  shape: text
+  near: top-center
+  style: {font-size: 24; bold: true}
+}
+
+direction: down
+
+ieee: "ieee8023 (GitHub)\ncommit 7854329\nAP views, patient ids" {class: source}
+radiography: "COVID-19 Radiography\nDatabase (Kaggle v5)" {class: source}
+covidqu: "COVID-QU-Ex\n(Kaggle v7)" {class: source}
+
+raw: "data/raw/<source> · ingest\nimages, metadata,\n_manifest.json" {class: store}
+raw_check: "manifest on raw\nversion, license, sha256\nper file; ingest skips a\nsource when it matches" {class: check}
+
+catalog: "data/catalog · catalog\ncatalog.parquet: one row per\nunique image, image_id =\nsha256 of the bytes;\ngroup_id = near-duplicates\nplus same patient" {class: store}
+catalog_check: "contract CATALOG\nrejects.parquet: missing_file,\nundecodable, label_conflict" {class: check}
+
+processed: "data/processed · process\nimages/<image_id>.png,\nprocessed.parquet,\nrejects (preprocess_error)" {class: store}
+quality: "reports/quality.json · process\nclass balance per source,\nrejects, image sizes,\nduplicates, groups" {class: store}
+
+features: "data/features · features\nfeatures.parquet: image_id\n+ 119 float64 columns" {class: store}
+features_check: "contract: finite values\nrejects: non_finite_features,\nextraction_error" {class: check}
+
+splits: "data/splits · split\nsplits.parquet: train 70 %,\nval 10 %, test 20 %;\nstratified by label,\ngrouped by group_id" {class: store}
+split_check: "split guard\na group sits in one split;\nevery split has both classes;\nfails on a group larger than\nthe smallest split" {class: check}
+
+baseline: "models/baseline · train_baseline\nmodel.joblib, selection.json,\npredictions.parquet" {class: store}
+cnn: "models/cnn · train_cnn\nmodel.pt, train_log.json,\npredictions.parquet" {class: store}
+train_check: "no leakage\nscaler inside the sklearn\nPipeline, fit on train;\nselection on val F1 only" {class: check}
+
+eval: "data/eval · evaluate\neval.parquet: predictions\n+ source + y_pred at 0.5" {class: store}
+metrics: "reports/metrics.json · evaluate\nval and test metrics per family,\ntest metrics per source" {class: store}
+
+readme: "README results block\ncovidxr report" {class: serving}
+readme_check: "covidxr report --check\n(make lint) fails on a\nstale block" {class: check}
+
+ieee -> raw
+radiography -> raw
+covidqu -> raw
+ieee -> raw_check {class: layer}
+
+raw -> catalog
+raw -> catalog_check {class: layer}
+
+catalog -> processed
+raw -> processed: "pixels"
+catalog -> quality
+
+processed -> features
+processed -> features_check {class: layer}
+
+catalog -> splits
+features -> splits
+features -> split_check {class: layer}
+
+features -> baseline
+splits -> baseline
+processed -> cnn
+splits -> cnn
+splits -> train_check {class: layer}
+
+baseline -> eval
+cnn -> eval
+splits -> eval
+baseline -> metrics
+cnn -> metrics
+
+metrics -> readme
+metrics -> readme_check {class: layer}
+
+legend: Legend {
+  class: legend
+  grid-columns: 3
+  source: source dataset {class: [source; legend-item]}
+  store: stored data or report {class: [store; legend-store]}
+  check: contract or guard {class: [check; legend-item]}
+  serving: serving {class: [serving; legend-item]}
+  edges: "solid arrow: data" {shape: text; style.font-size: 13}
+  runmeta: "every layer directory ends with\n_run.json (run_id, UTC times,\nrow counts, rejects, params_hash),\nwritten last" {shape: text; style.font-size: 13}
+}
